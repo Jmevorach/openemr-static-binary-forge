@@ -1,0 +1,370 @@
+<div align="center">
+
+<img src="logo/openemr_static_binary_forge_logo.png" alt="OpenEMR Static Binary Forge Logo" width="500">
+
+*This project provides tools to build self-contained, statically compiled OpenEMR binaries for multiple platforms using Static PHP CLI (SPC). The resulting binaries include OpenEMR and PHP runtime with all dependencies in a single executable that can run without additional dependencies (note: OpenEMR needs an external MySQL database to function whether it's run in a static binary or not).*
+
+</div>
+
+## Currently Supported Platforms
+
+This project supports building OpenEMR static binaries for four platforms:
+
+- **macOS** (Apple Silicon and Intel) - See [macOS Build Guide](mac_os/README.md)
+- **Linux (amd64)** - See [Linux amd64 Build Guide](linux_amd64/README.md)
+- **Linux (arm64)** - See [Linux arm64 Build Guide](linux_arm64/README.md)
+- **FreeBSD** (arm64/aarch64) - See [FreeBSD Build Guide](freebsd/README.md)
+
+Each platform has its own build directory with platform-specific build scripts and documentation.
+
+## What is OpenEMR?
+
+OpenEMR is a popular open-source electronic health records (EHR) and medical practice management application. This project allows you to create a portable, standalone binary version.
+
+## Features
+
+- **Self-contained static binary**: Everything needed to run OpenEMR is included in a single executable
+- **Fully static**: All dependencies are statically linked into the binary
+- **No dependencies**: No need to install PHP or other software
+- **Portable**: Copy the binary to any compatible system and run it
+- **Optimized builds**: Automatically uses all available CPU cores and RAM for faster builds
+- **Easy to use**: Single executable with OpenEMR and PHP runtime
+
+## Platform Build Guides
+
+<details>
+<summary><strong>macOS</strong></summary>
+
+See the [macOS Build Guide](mac_os/README.md) for complete instructions on building OpenEMR static binaries for macOS (Apple Silicon and Intel).
+
+</details>
+
+<details>
+<summary><strong>Linux (arm64)</strong></summary>
+
+See the [Linux arm64 Build Guide](linux_arm64/README.md) for complete instructions on building OpenEMR static binaries for Linux arm64 using Docker.
+
+</details>
+
+<details>
+<summary><strong>Linux (amd64)</strong></summary>
+
+See the [Linux amd64 Build Guide](linux_amd64/README.md) for complete instructions on building OpenEMR static binaries for Linux amd64 using Docker.
+
+</details>
+
+<details>
+<summary><strong>FreeBSD</strong></summary>
+
+See the [FreeBSD Build Guide](freebsd/README.md) for complete instructions on building OpenEMR binaries for FreeBSD using QEMU on macOS.
+
+**Key features:**
+- Builds native FreeBSD binaries from macOS using QEMU virtualization
+- PHP compiled from source with all required extensions
+- Bundled shared libraries for portability
+- VM runner script for testing on macOS
+- Works on actual FreeBSD systems with bundled libs
+
+</details>
+
+## Project Structure
+
+```
+openemr-static-binary-forge/
+├── README.md                         # This file (main documentation)
+├── LICENSE                           # Project license
+├── mac_os/                           # macOS build files
+│   ├── build-macos.sh                # macOS build script
+│   ├── run-web-server.sh             # macOS web server launcher
+│   ├── php.ini                       # PHP configuration (customizable)
+│   └── README.md                     # macOS build guide
+├── linux_amd64/                      # Linux amd64 build files
+│   ├── build-linux.sh                # Linux amd64 build script
+│   ├── run-web-server.sh             # Linux amd64 web server launcher (Docker)
+│   ├── Dockerfile                    # Docker image for running OpenEMR
+│   ├── docker-compose.yml            # Docker Compose configuration
+│   ├── docker-entrypoint.sh          # Container entrypoint script
+│   ├── docker-entrypoint-wrapper.sh  # Permissions wrapper
+│   ├── php.ini                       # PHP configuration (customizable)
+│   └── README.md                     # Linux amd64 build guide
+├── linux_arm64/                      # Linux arm64 build files
+│   ├── build-linux.sh                # Linux arm64 build script
+│   ├── run-web-server.sh             # Linux arm64 web server launcher (Docker)
+│   ├── Dockerfile                    # Docker image for running OpenEMR
+│   ├── docker-compose.yml            # Docker Compose configuration
+│   ├── docker-entrypoint.sh          # Container entrypoint script
+│   ├── docker-entrypoint-wrapper.sh  # Permissions wrapper
+│   ├── php.ini                       # PHP configuration (customizable)
+│   └── README.md                     # Linux arm64 build guide
+├── freebsd/                          # FreeBSD build files
+│   ├── build-freebsd.sh              # FreeBSD build script (uses QEMU)
+│   ├── run-freebsd-vm.sh             # Run OpenEMR in FreeBSD VM (macOS)
+│   ├── run-web-server.sh             # Web server for native FreeBSD
+│   ├── php.ini                       # PHP configuration (customizable)
+│   └── README.md                     # FreeBSD build guide
+└── logo/                             # Project logos
+```
+
+## How It Works
+
+The build process follows these steps (with platform-specific variations):
+
+1. **System Detection**: Automatically detects CPU cores and RAM to optimize build performance
+   - Detects physical and logical CPU cores
+   - Calculates optimal parallel build jobs
+   - Sets appropriate memory limits for Composer and npm
+
+2. **Prepare OpenEMR**: Clones the specified OpenEMR version and prepares it for packaging
+   - Removes unnecessary files
+   - Installs production dependencies via Composer (using parallel processes)
+   - Builds frontend assets (with optimized memory allocation)
+   - Creates a PHAR archive containing the application
+
+3. **Setup Static PHP CLI (SPC)**: 
+   - **macOS**: Downloads pre-built SPC binary for the target architecture
+   - **Linux**: Builds SPC from source inside Docker container
+   - **FreeBSD**: Builds PHP directly from source (SPC not available for FreeBSD)
+
+4. **Build Static PHP**: Uses SPC to build static PHP binaries:
+   - **macOS**: Builds directly on the host system
+   - **Linux**: Builds inside Docker container (ensures consistent build environment)
+   - **FreeBSD**: Builds PHP from source inside QEMU VM, bundles shared libraries
+   - Downloads PHP and extension sources (or builds PHP from source for Linux/FreeBSD)
+   - Compiles PHP CLI and MicroSFX with all required extensions
+   - All dependencies are statically linked (or bundled as shared libs for FreeBSD)
+
+5. **Combine Binary**: Combines the PHAR archive with the MicroSFX binary to create a single executable:
+   - OpenEMR application code (in PHAR format)
+   - PHP runtime with all extensions
+   - Single self-contained binary
+
+6. **Output**: The final static binary, PHP CLI binary, and PHAR archive are saved:
+   - **macOS**: Saved in the `mac_os/` directory
+   - **Linux**: Saved in the respective `linux_amd64/` or `linux_arm64/` directory
+   - **FreeBSD**: Saved in `freebsd/dist/` directory (includes `lib/` with bundled shared libraries)
+   - All platforms: Also copied to the project root for easier access
+
+### Static Binary Details
+
+The resulting binary:
+- Contains both the PHP interpreter and the OpenEMR application
+- Self-extracts and executes when run to serve static files (CSS, images, etc.)
+- **macOS**: Can run on any macOS system of the same architecture (Apple Silicon or Intel)
+- **Linux**: Can run on any Linux system of the same architecture (amd64 or arm64)
+- **FreeBSD**: Can run on FreeBSD systems with bundled shared libraries (`lib/` directory required)
+- Fully portable and self-contained
+
+This method is based on the approach described in [Creating Standalone PHP App Binaries using Static PHP CLI](https://www.bosunegberinde.com/articles/building-php-binary).
+
+## Performance Optimization
+
+The build scripts automatically optimize for your system:
+
+### Automatic Resource Detection
+
+All platforms automatically detect and optimize:
+- **CPU Cores**: Detects physical and logical CPU cores
+- **RAM**: Detects total system RAM (or Docker container RAM for Linux)
+- **Parallel Jobs**: Calculates optimal parallel build jobs (typically physical cores + 1)
+- **Memory Limits**: Sets appropriate memory limits for Composer and npm based on available RAM
+
+### Build Optimizations
+
+- **Parallel Compilation**: Uses all available CPU cores for faster builds
+- **Composer**: Uses parallel processes for dependency installation
+- **npm**: Optimized memory allocation based on system RAM
+- **Static Linking**: Creates fully static binary where possible
+- **Debug Symbols**: Stripped to reduce binary size
+- **Docker Memory Allocation** (Linux): Allocates 16GB RAM to Docker containers for optimal build performance
+
+### Customizing Build Performance
+
+You can manually override the automatic detection by setting environment variables before running the script:
+
+```bash
+# Force specific number of parallel jobs (macOS only)
+export PARALLEL_JOBS=8
+
+# Override Composer memory limit
+export COMPOSER_MEMORY_LIMIT=4G
+
+# Specify PHP version (Linux builds)
+export PHP_VERSION=8.4
+
+# Run the build (platform-specific)
+cd mac_os && ./build-macos.sh          # macOS
+cd linux_amd64 && ./build-linux.sh     # Linux amd64
+cd linux_arm64 && ./build-linux.sh     # Linux arm64
+cd freebsd && ./build-freebsd.sh       # FreeBSD (via QEMU)
+```
+
+## Troubleshooting
+
+### Platform-Specific Issues
+
+Each platform has its own troubleshooting guide:
+- **macOS**: See [macOS Build Guide - Troubleshooting](mac_os/README.md#troubleshooting)
+- **Linux (amd64)**: See [Linux amd64 Build Guide - Troubleshooting](linux_amd64/README.md#troubleshooting)
+- **Linux (arm64)**: See [Linux arm64 Build Guide - Troubleshooting](linux_arm64/README.md#troubleshooting)
+- **FreeBSD**: See [FreeBSD Build Guide - Troubleshooting](freebsd/README.md#troubleshooting)
+
+### Common Issues
+
+#### Build Fails with Missing Libraries (macOS)
+
+If you get errors about missing libraries during the build on macOS:
+```bash
+# Install all required development libraries
+brew install \
+  libpng \
+  libjpeg \
+  freetype \
+  libxml2 \
+  libzip \
+  imagemagick \
+  pkg-config
+```
+
+**Important**: `pkg-config` is required for the build process to detect system libraries.
+
+#### Docker Not Running (Linux)
+
+If you get errors about Docker not being available on Linux:
+```bash
+# Check if Docker is running
+docker info
+
+# Start Docker Desktop (macOS/Windows)
+# Or start Docker daemon (Linux)
+sudo systemctl start docker
+```
+
+#### QEMU Not Installed (FreeBSD Build)
+
+If you get errors about QEMU not being available when building for FreeBSD:
+```bash
+# Install QEMU and expect on macOS
+brew install qemu expect
+```
+
+#### Out of Memory During Build
+
+If you run out of memory during the build:
+- Close other applications to free up RAM
+- **macOS**: Reduce parallel build jobs by setting `PARALLEL_JOBS` environment variable
+- **Linux**: Ensure Docker has enough memory allocated (default: 16GB)
+- Consider building on a machine with more RAM
+
+#### Composer Dependencies Fail
+
+If Composer dependency installation fails:
+- Ensure you have a stable internet connection
+- Try increasing PHP memory limit: `COMPOSER_MEMORY_LIMIT=2G composer install`
+- Check if the OpenEMR version you're trying to build exists and is valid
+
+#### Frontend Build Fails
+
+If npm builds fail:
+- **macOS**: Ensure Node.js is installed: `brew install node`
+- **Linux**: Node.js is included in the Docker build image
+- Try clearing npm cache: `npm cache clean --force`
+- Check if the OpenEMR version supports the Node.js version you have installed
+
+#### SPC Download/Build Fails
+
+- **macOS**: Check your internet connection and try again later
+- **Linux**: SPC is built from source, ensure Docker has enough resources
+- **FreeBSD**: Does not use SPC; PHP is built directly from source
+- Check the [Static PHP CLI releases page](https://github.com/crazywhalecc/static-php-cli/releases) for more information
+
+## PHP Extensions Included
+
+The build includes these PHP extensions required by OpenEMR:
+
+- bcmath
+- exif
+- gd (with JPEG and PNG support)
+- intl
+- ldap
+- mbstring
+- mysqli
+- opcache
+- openssl
+- pcntl
+- pdo_mysql
+- redis
+- soap
+- sockets
+- zip
+- imagick
+
+**Note**: The build uses PHP (version specified by `PHP_VERSION` environment variable, default: 8.5) with all required extensions statically compiled. Linux builds compile PHP from source, while macOS builds use pre-built PHP sources.
+
+## Usage
+
+After building, you'll have a single binary file that includes PHP and OpenEMR. To use it:
+
+1. **macOS**: Run the binary directly or use the included `run-web-server.sh` script
+2. **Linux**: Use Docker Compose with the included `run-web-server.sh` script (recommended) or run the binary directly
+3. **FreeBSD (on macOS)**: Use `run-freebsd-vm.sh` to boot a QEMU VM and run OpenEMR
+4. **FreeBSD (native)**: Copy the distribution to FreeBSD and use `run-web-server.sh` or run directly
+5. For web applications, you can use PHP's built-in server (included in launcher scripts) or set up a production web server (Apache, Nginx, etc.)
+6. The binary is portable - copy it to any compatible system of the same architecture and run it
+
+### Running the Web Server
+
+Each platform includes a web server launcher script:
+
+- **macOS**: `cd mac_os && ./run-web-server.sh [port]`
+- **Linux (amd64)**: `cd linux_amd64 && ./run-web-server.sh [port]`
+- **Linux (arm64)**: `cd linux_arm64 && ./run-web-server.sh [port]`
+- **FreeBSD (on macOS)**: `cd freebsd && ./run-freebsd-vm.sh -p [port]` (runs in QEMU VM)
+- **FreeBSD (native)**: `cd freebsd && ./run-web-server.sh [port]` (runs directly on FreeBSD)
+
+The launcher scripts handle PHAR extraction and start PHP's built-in development server. For production use, configure a proper web server according to [OpenEMR's documentation](https://github.com/openemr/openemr-devops/tree/master/docker/openemr/7.0.5).
+
+## PHP Configuration (php.ini)
+
+A customizable `php.ini` file is included in each platform's build directory that configures PHP settings for OpenEMR. The web server launcher automatically uses this file if it's present.
+
+### Location
+
+The `php.ini` file is located in each platform's directory:
+```
+mac_os/php.ini
+linux_amd64/php.ini
+linux_arm64/php.ini
+freebsd/php.ini
+```
+
+### Automatic Usage
+
+The `php.ini` file is automatically used by:
+- **macOS**: The web server launcher (`run-web-server.sh`) for PHAR extraction and PHP's built-in web server
+- **Linux**: The Docker container entrypoint script when serving OpenEMR via Docker Compose
+- **FreeBSD**: The VM runner (`run-freebsd-vm.sh`) and native web server script
+
+If the file is not found, PHP will use its default settings. You can customize the `php.ini` file in your platform's directory to adjust memory limits, timeouts, and other PHP settings.
+
+## License
+
+See the [LICENSE](LICENSE) file for license information.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit issues or pull requests.
+
+## References
+
+- [OpenEMR GitHub](https://github.com/openemr/openemr)
+- [Static PHP CLI](https://github.com/crazywhalecc/static-php-cli)
+- [Creating Standalone PHP App Binaries using Static PHP CLI](https://www.bosunegberinde.com/articles/building-php-binary)
+- [OpenEMR Official Website](https://www.open-emr.org/)
+- [FreeBSD QEMU Wiki](https://wiki.freebsd.org/arm64/QEMU)
+- [QEMU Documentation](https://www.qemu.org/docs/master/)
+
+## Support
+
+For issues specific to this build system, please open an issue in this repository.
+
+For OpenEMR-specific issues, please refer to the [OpenEMR project](https://github.com/openemr/openemr).

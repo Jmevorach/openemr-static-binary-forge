@@ -1,0 +1,29 @@
+# Docker ignore file for OpenEMR static binary build
+# Exclude unnecessary files from Docker build context
+
+# Build artifacts
+output/
+openemr-source/
+docker-build-internal.sh
+Dockerfile.build
+
+# Documentation
+*.md
+README.md
+
+# Git
+.git/
+.gitignore
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+

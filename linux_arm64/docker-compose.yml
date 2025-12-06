@@ -1,0 +1,27 @@
+services:
+  openemr:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: openemr-static
+    ports:
+      - "${OPENEMR_PORT:-8080}:8080"
+    environment:
+      - OPENEMR_PORT=${OPENEMR_PORT:-8080}
+    volumes:
+      # Mount data directory for persistence (extracted OpenEMR files)
+      - openemr-data:/app/openemr-extracted
+      # Mount PHP config if exists (optional)
+      - ./php.ini:/usr/local/etc/php/php.ini:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/php", "-r", "echo 'OK';"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  openemr-data:
+    driver: local
+

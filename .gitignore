@@ -1,0 +1,40 @@
+# Build artifacts
+*.phar
+*.sfx
+openemr-*
+build-logs-*/
+
+# Temporary build directories
+/tmp/
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Build binaries
+mac_os/openemr-*-macos-*
+
+# FreeBSD VM images (large files, should not be committed)
+freebsd/vm-images/
+
+# Static PHP CLI downloads and builds
+spc-*.tar.gz
+buildroot/
+static-php-cli/
+downloads/
+pkgroot/
