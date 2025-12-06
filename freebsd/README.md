@@ -40,7 +40,7 @@ The FreeBSD workflow consists of these scripts:
 
 ### Build Artifacts
 
-The build produces (similar to macOS):
+The build produces:
 
 | Artifact | Description                                                                 |
 |----------|-----------------------------------------------------------------------------|
