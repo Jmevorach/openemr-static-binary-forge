@@ -253,6 +253,21 @@ if ! xz -d -f "${COMPRESSED_IMAGE}"; then
     exit 1
 fi
 
+# Resize the disk image to 20GB (default is only ~6GB which isn't enough for OpenEMR extraction)
+echo -e "${YELLOW}Resizing VM disk to 20GB for OpenEMR...${NC}"
+if ! command -v qemu-img >/dev/null 2>&1; then
+    echo -e "${RED}ERROR: qemu-img is required to resize the VM disk${NC}"
+    echo "Please install QEMU: brew install qemu"
+    rm -rf "${VM_TMP_DIR}"
+    exit 1
+fi
+if ! qemu-img resize "${VM_IMAGE_PATH}" 20G; then
+    echo -e "${RED}ERROR: Failed to resize VM disk${NC}"
+    rm -rf "${VM_TMP_DIR}"
+    exit 1
+fi
+echo -e "${GREEN}✓ VM disk resized to 20GB${NC}"
+
 echo -e "${GREEN}✓ Fresh VM image ready${NC}"
 
 # Shared directory for artifacts (serves as HTTP root)
@@ -267,6 +282,12 @@ chmod +x "${SHARED_DIR}/php"
 # Copy php.ini if it exists
 if [ -f "${SCRIPT_DIR}/php.ini" ]; then
     cp "${SCRIPT_DIR}/php.ini" "${SHARED_DIR}/php.ini"
+fi
+
+# Copy router.php if it exists (for PHP built-in server)
+if [ -f "${SCRIPT_DIR}/router.php" ]; then
+    cp "${SCRIPT_DIR}/router.php" "${SHARED_DIR}/router.php"
+    echo -e "${GREEN}✓ Router script copied to shared directory${NC}"
 fi
 
 # Copy the lib/ directory with bundled shared libraries
@@ -564,7 +585,18 @@ expect {
     }
 }
 
-puts "\n=== VM logged in, downloading files via HTTP... ===\n"
+puts "\n=== VM logged in, growing filesystem and downloading files... ===\n"
+
+# Grow the filesystem to use all available disk space (we resized the disk on the host)
+puts "Growing filesystem to use full disk space...\n"
+send "gpart recover vtbd0\r"
+expect "# "
+send "gpart resize -i 3 vtbd0\r"
+expect "# "
+send "growfs -y /dev/vtbd0p3\r"
+expect "# "
+send "df -h /\r"
+expect "# "
 
 # Get HTTP port from environment
 set http_port $env(HTTP_PORT)
@@ -605,6 +637,22 @@ expect "# "
 
 # Download php.ini if available
 send "fetch -o php.ini http://10.0.2.2:$http_port/php.ini 2>/dev/null || echo NO_PHP_INI\r"
+expect "# "
+
+# Download router.php if available
+puts "Downloading router script..."
+send "fetch -o router.php http://10.0.2.2:$http_port/router.php 2>/dev/null && echo ROUTER_DOWNLOADED || echo NO_ROUTER\r"
+expect {
+    "ROUTER_DOWNLOADED" {
+        puts "Router script downloaded successfully"
+    }
+    "NO_ROUTER" {
+        puts "No router script available, will create one"
+    }
+    timeout {
+        puts "Timeout downloading router script"
+    }
+}
 expect "# "
 
 # Download bundled libraries
@@ -680,28 +728,74 @@ expect {
 set timeout 600
 expect "# "
 
-# Create router script for PHP built-in server
-# Note: brackets must be escaped for Tcl/expect
-send "cat > /build/router.php << 'ROUTERPHP'
+# Verify router script exists, create simple fallback if not
+puts "\n=== Setting up router script for PHP built-in server... ===\n"
+# Check if router.php exists using test command (avoids Tcl ! interpretation)
+send "test -f /build/router.php && echo ROUTER_EXISTS || echo ROUTER_MISSING\r"
+expect {
+    "ROUTER_EXISTS" {
+        puts "Router script found"
+        expect "# "
+    }
+    "ROUTER_MISSING" {
+        puts "Router script not found, creating fallback..."
+        expect "# "
+        # Create fallback router script
+        send "cat > /build/router.php << 'ROUTER_EOF'
 <?php
-\$uri = parse_url(\$_SERVER\['REQUEST_URI'\], PHP_URL_PATH);
-\$file = '/build/openemr' . \$uri;
-if (\$uri !== '/' && file_exists(\$file) && !is_dir(\$file)) {
+\$webRoot = '/build/openemr';
+\$uri = parse_url(\$_SERVER['REQUEST_URI'], PHP_URL_PATH);
+\$requestFile = \$webRoot . \$uri;
+if (\$uri !== '/' && file_exists(\$requestFile) && !is_dir(\$requestFile)) {
     return false;
 }
-\$index = '/build/openemr/index.php';
-if (file_exists(\$index)) {
-    require \$index;
-    return;
+\$openemrEntryPoints = [
+    \$webRoot . '/interface/main/main.php',
+    \$webRoot . '/interface/main.php',
+    \$webRoot . '/main.php',
+    \$webRoot . '/index.php',
+];
+if (is_dir(\$webRoot)) {
+    \$interfaceDir = \$webRoot . '/interface';
+    if (is_dir(\$interfaceDir)) {
+        if (is_dir(\$interfaceDir . '/main')) {
+            \$openemrEntryPoints[] = \$interfaceDir . '/main/main.php';
+            \$openemrEntryPoints[] = \$interfaceDir . '/main/index.php';
+        }
+        \$openemrEntryPoints[] = \$interfaceDir . '/main.php';
+        \$openemrEntryPoints[] = \$interfaceDir . '/index.php';
+    }
 }
-\$login = '/build/openemr/interface/login/login.php';
-if (file_exists(\$login)) {
-    require \$login;
-    return;
+foreach (\$openemrEntryPoints as \$entryPoint) {
+    if (file_exists(\$entryPoint)) {
+        \$_SERVER['SCRIPT_NAME'] = \$entryPoint;
+        \$_SERVER['PHP_SELF'] = \$entryPoint;
+        \$_SERVER['DOCUMENT_ROOT'] = \$webRoot;
+        require \$entryPoint;
+        return;
+    }
 }
-echo 'OpenEMR not found';
-ROUTERPHP\r"
-expect "# "
+http_response_code(404);
+echo \"OpenEMR entry point not found\\n\";
+ROUTER_EOF
+echo ROUTER_FALLBACK_CREATED\r"
+        expect {
+            "ROUTER_FALLBACK_CREATED" {
+                puts "Router fallback script created successfully"
+                expect "# "
+            }
+            timeout {
+                puts "Warning: Router fallback creation may have timed out"
+                expect "# "
+            }
+        }
+    }
+    timeout {
+        puts "Warning: Router check timed out, will try to continue"
+        expect "# "
+    }
+}
+puts "Router script setup completed"
 
 # Start the PHP web server with router
 puts "\n=== Starting OpenEMR server... ===\n"

@@ -100,6 +100,7 @@ openemr-static-binary-forge/
 │   ├── build-freebsd.sh              # FreeBSD build script (uses QEMU)
 │   ├── run-freebsd-vm.sh             # Run OpenEMR in FreeBSD VM (macOS)
 │   ├── run-web-server.sh             # Web server for native FreeBSD
+│   ├── router.php                    # Router script for PHP built-in server
 │   ├── php.ini                       # PHP configuration (customizable)
 │   └── README.md                     # FreeBSD build guide
 └── logo/                             # Project logos
@@ -346,9 +347,81 @@ The `php.ini` file is automatically used by:
 
 If the file is not found, PHP will use its default settings. You can customize the `php.ini` file in your platform's directory to adjust memory limits, timeouts, and other PHP settings.
 
+## Router Script (router.php)
+
+**Important**: The router script and PHP's built-in server are intended for **development and testing purposes only**. For production deployments, you should use a proper web server such as Apache as recommended in OpenEMR's documentation.
+
+The router script is an illustrative tool that demonstrates how to properly serve OpenEMR with PHP's built-in development server. It ensures that static files (CSS, JavaScript, images) are served correctly and routes requests to the appropriate OpenEMR entry points. This script helps developers understand the routing requirements and test OpenEMR builds locally, but should not be used in production environments.
+
+### Purpose
+
+PHP's built-in server requires a router script to:
+- **Serve static files directly**: CSS, JavaScript, images, and other assets are served without PHP processing
+- **Route to OpenEMR entry points**: Requests are properly routed to OpenEMR's interface entry points
+- **Set correct server variables**: Configures `SCRIPT_NAME`, `PHP_SELF`, and `DOCUMENT_ROOT` for OpenEMR
+
+Without the router script, you may experience:
+- Missing CSS styling
+- Non-functional JavaScript
+- Broken image loading
+- Incorrect routing of requests
+
+### Location and Usage
+
+The router script is used automatically by all web server launchers:
+
+- **macOS**: Created dynamically by `run-web-server.sh` in a temporary directory
+- **Linux (Docker)**: Created dynamically by `docker-entrypoint.sh` in `/tmp/router.php`
+- **FreeBSD (VM)**: Downloaded from `freebsd/router.php` or created as a fallback in the VM
+
+### FreeBSD Static Router File
+
+For FreeBSD builds, a static `router.php` file is included in the `freebsd/` directory. This file is:
+- Automatically copied to the shared directory for VM testing
+- Used by the FreeBSD VM runner script (`run-freebsd-vm.sh`)
+- Can be customized if needed for specific routing requirements
+
+The router script location:
+```
+freebsd/router.php
+```
+
+### How It Works
+
+The router script:
+1. **Checks for static files**: If the requested file exists and is not a directory, it returns `false`, allowing PHP's built-in server to serve it directly
+2. **Searches for OpenEMR entry points**: Looks for common OpenEMR entry points in order:
+   - `/interface/main/main.php` (standard OpenEMR structure)
+   - `/interface/main.php`
+   - `/main.php`
+   - `/index.php`
+3. **Sets server variables**: Configures PHP superglobals to match OpenEMR's expectations
+4. **Includes the entry point**: Requires the found entry point to serve the request
+
+### Customization
+
+While the router script works out of the box, you can customize it for specific needs:
+- Modify the `freebsd/router.php` file for FreeBSD builds
+- Edit the router creation logic in the web server launcher scripts for other platforms
+- Add custom routing logic for specific URL patterns
+
+**Important**: Changes to the router script may affect OpenEMR's functionality. Test thoroughly after making modifications.
+
+### Production Deployment
+
+**The router script and PHP's built-in server should NOT be used in production.** PHP's built-in web server is explicitly designed for development and testing only. It lacks essential production features such as:
+
+- Performance optimization and caching
+- Security hardening
+- Process management and supervision
+- Load balancing and high availability
+- Advanced logging and monitoring
+- HTTPS/SSL termination
+- Rate limiting and DDoS protection
+
 ## License
 
-See the [LICENSE](LICENSE) file for license information.
+See the [LICENSE](LICENSE) file for license information. Uses the MIT license.
 
 ## Contributing
 

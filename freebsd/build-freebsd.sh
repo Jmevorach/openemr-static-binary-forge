@@ -543,12 +543,55 @@ if [ -f "package.json" ] && command -v npm >/dev/null 2>&1; then
         echo -e "${YELLOW}WARNING: Failed to install global npm deps${NC}"
     }
     
-    echo "Running npm ci..."
-    npm ci --production 2>&1 || {
-        echo -e "${YELLOW}WARNING: npm build had issues, but continuing...${NC}"
+    # Install npm dependencies (WITHOUT --production flag to get devDependencies needed for building)
+    echo "Installing npm dependencies (including devDependencies for build tools)..."
+    npm ci 2>&1 || {
+        echo -e "${YELLOW}WARNING: npm ci had issues, trying npm install as fallback...${NC}"
+        npm install 2>&1 || {
+            echo -e "${YELLOW}WARNING: npm install also had issues, but continuing...${NC}"
+        }
     }
     
-    echo "Frontend build step completed."
+    # Run build command to compile CSS/JS assets
+    # OpenEMR uses Gulp via npm run build to compile CSS and JavaScript
+    echo "Building frontend assets with npm run build (runs Gulp)..."
+    BUILD_SUCCESS=false
+    
+    # OpenEMR uses 'npm run build' which triggers Gulp to compile assets
+    if npm run | grep -q "^  build" || grep -q '"build"' package.json 2>/dev/null; then
+        echo "Running npm run build to compile CSS and JavaScript assets..."
+        npm run build 2>&1 && {
+            BUILD_SUCCESS=true
+            echo -e "${GREEN}✓ Frontend assets built successfully (CSS and JavaScript compiled)${NC}"
+        } || {
+            echo -e "${YELLOW}WARNING: npm run build had issues${NC}"
+        }
+    else
+        # Fallback: try gulp directly if npm run build doesn't exist
+        if command -v gulp >/dev/null 2>&1 && ([ -f "gulpfile.js" ] || [ -f "Gulpfile.js" ]); then
+            echo "Running gulp directly to build frontend assets..."
+            gulp 2>&1 && {
+                BUILD_SUCCESS=true
+                echo -e "${GREEN}✓ Gulp build completed successfully${NC}"
+            } || {
+                echo -e "${YELLOW}WARNING: gulp build had issues${NC}"
+            }
+        fi
+    fi
+    
+    if [ "${BUILD_SUCCESS}" != "true" ]; then
+        echo -e "${RED}ERROR: Frontend build failed!${NC}"
+        echo -e "${RED}CSS and JavaScript assets were NOT compiled.${NC}"
+        echo -e "${RED}OpenEMR will not have working styles or JavaScript.${NC}"
+        echo ""
+        echo "This is a critical issue. Please check:"
+        echo "  - Node.js and npm are properly installed"
+        echo "  - All npm dependencies installed correctly"
+        echo "  - gulp-cli is installed globally"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}Frontend build step completed successfully.${NC}"
 fi
 
 # Create PHAR file

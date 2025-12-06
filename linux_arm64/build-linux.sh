@@ -293,9 +293,71 @@ if [ -f "composer.json" ] && command -v composer >/dev/null 2>&1; then
         2>&1 | grep -v "^#" || true
 fi
 
+# Build frontend assets if needed
 if [ -f "package.json" ] && command -v npm >/dev/null 2>&1; then
     echo "Building frontend assets..."
-    NODE_OPTIONS="--max-old-space-size=$((TOTAL_RAM_GB * 512))" npm ci --production 2>&1 | tail -20 || true
+    
+    # Make npm fully non-interactive
+    export npm_config_yes=true
+    export npm_config_loglevel=warn
+    export CI=true
+    
+    # Install global dependencies needed by OpenEMR's postinstall scripts
+    echo "Installing global npm dependencies (napa, gulp-cli)..."
+    npm install -g --yes napa gulp-cli 2>&1 || {
+        echo "WARNING: Failed to install global npm deps"
+        echo "Continuing anyway..."
+    }
+    
+    # Install npm dependencies (WITHOUT --production flag to get devDependencies needed for building)
+    echo "Installing npm dependencies (including devDependencies for build tools)..."
+    NODE_OPTIONS="--max-old-space-size=$((TOTAL_RAM_GB * 512))" npm ci 2>&1 || {
+        echo "WARNING: npm ci had issues, trying npm install as fallback..."
+        NODE_OPTIONS="--max-old-space-size=$((TOTAL_RAM_GB * 512))" npm install 2>&1 || {
+            echo "WARNING: npm install also had issues, but continuing..."
+        }
+    }
+    
+    # Run build command to compile CSS/JS assets
+    # OpenEMR uses Gulp via npm run build to compile CSS and JavaScript
+    echo "Building frontend assets with npm run build (runs Gulp)..."
+    BUILD_SUCCESS=false
+    
+    # OpenEMR uses 'npm run build' which triggers Gulp to compile assets
+    if npm run | grep -q "^  build" || grep -q '"build"' package.json 2>/dev/null; then
+        echo "Running npm run build to compile CSS and JavaScript assets..."
+        NODE_OPTIONS="--max-old-space-size=$((TOTAL_RAM_GB * 512))" npm run build 2>&1 && {
+            BUILD_SUCCESS=true
+            echo "✓ Frontend assets built successfully (CSS and JavaScript compiled)"
+        } || {
+            echo "WARNING: npm run build had issues"
+        }
+    else
+        # Fallback: try gulp directly if npm run build doesn't exist
+        if command -v gulp >/dev/null 2>&1 && ([ -f "gulpfile.js" ] || [ -f "Gulpfile.js" ]); then
+            echo "Running gulp directly to build frontend assets..."
+            NODE_OPTIONS="--max-old-space-size=$((TOTAL_RAM_GB * 512))" gulp 2>&1 && {
+                BUILD_SUCCESS=true
+                echo "✓ Gulp build completed successfully"
+            } || {
+                echo "WARNING: gulp build had issues"
+            }
+        fi
+    fi
+    
+    if [ "${BUILD_SUCCESS}" != "true" ]; then
+        echo "ERROR: Frontend build failed!"
+        echo "CSS and JavaScript assets were NOT compiled."
+        echo "OpenEMR will not have working styles or JavaScript."
+        echo ""
+        echo "This is a critical issue. Please check:"
+        echo "  - Node.js and npm are properly installed"
+        echo "  - All npm dependencies installed correctly"
+        echo "  - gulp-cli is installed globally"
+        exit 1
+    fi
+    
+    echo "Frontend build step completed successfully."
 fi
 
 echo "Creating PHAR archive..."
