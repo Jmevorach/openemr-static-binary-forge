@@ -14,6 +14,18 @@ Complete guide for building OpenEMR static binaries for Linux amd64 using Docker
 
 </div>
 
+## Pre-built Binaries
+
+If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_amd64-php85-openemr-v7_0_3_4-arm64-12072025).
+
+**Latest Release**: [linux_amd64-php85-openemr-v7_0_3_4-arm64-12072025](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_amd64-php85-openemr-v7_0_3_4-arm64-12072025)
+
+**To use a pre-built binary:**
+1. Download the release assets to the `linux_amd64` directory
+2. Run `./run-web-server.sh` in that directory
+
+**Note**: Pre-built binaries are built on specific hardware configurations (M5 MacBook Pro with 1TB disk and 32 GB RAM) and may have different performance characteristics on your system. For the most optimized build for your hardware, consider building from source using the instructions below.
+
 ## Requirements
 
 ### System Requirements
