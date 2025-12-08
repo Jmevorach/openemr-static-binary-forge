@@ -142,7 +142,7 @@ if [ ${#MISSING_TOOLS[@]} -gt 0 ]; then
 fi
 echo -e "${GREEN}✓ All required tools are available${NC}"
 
-# Check for build artifacts
+# Check for build artifacts - use tarball directly
 DIST_DIR="${SCRIPT_DIR}/dist"
 if [ ! -d "${DIST_DIR}" ]; then
     echo -e "${RED}ERROR: Build artifacts not found at ${DIST_DIR}${NC}"
@@ -153,28 +153,16 @@ if [ ! -d "${DIST_DIR}" ]; then
     exit 1
 fi
 
-# Find the PHAR file
-PHAR_FILE=$(find "${DIST_DIR}" -name "*.phar" -type f 2>/dev/null | head -1)
-if [ -z "${PHAR_FILE}" ]; then
-    echo -e "${RED}ERROR: No PHAR file found in ${DIST_DIR}${NC}"
+# Find the tarball
+TARBALL=$(find "${DIST_DIR}" -name "*.tar.gz" -type f 2>/dev/null | head -1)
+if [ -z "${TARBALL}" ]; then
+    echo -e "${RED}ERROR: No distribution tarball found in ${DIST_DIR}${NC}"
     echo "Please run the build script first."
     exit 1
 fi
 
-# Find the PHP binary (could be named 'php' or 'php-cli-*')
-PHP_BINARY=$(find "${DIST_DIR}" -name "php" -type f 2>/dev/null | head -1)
-if [ -z "${PHP_BINARY}" ]; then
-    PHP_BINARY=$(find "${DIST_DIR}" -name "php-cli-*" -type f 2>/dev/null | head -1)
-fi
-if [ -z "${PHP_BINARY}" ]; then
-    echo -e "${RED}ERROR: No PHP binary found in ${DIST_DIR}${NC}"
-    echo "Please run the build script first."
-    exit 1
-fi
-
-echo -e "${GREEN}✓ Found build artifacts:${NC}"
-echo "  PHAR:   $(basename "${PHAR_FILE}")"
-echo "  PHP:    $(basename "${PHP_BINARY}")"
+echo -e "${GREEN}✓ Found distribution tarball:${NC}"
+echo "  $(basename "${TARBALL}")"
 echo ""
 
 # Determine architecture
@@ -274,42 +262,51 @@ echo -e "${GREEN}✓ Fresh VM image ready${NC}"
 SHARED_DIR=$(mktemp -d)
 echo "Shared directory: ${SHARED_DIR}"
 
-# Copy artifacts to shared directory with consistent names for HTTP download
-cp "${PHAR_FILE}" "${SHARED_DIR}/openemr.phar"
-cp "${PHP_BINARY}" "${SHARED_DIR}/php"
-chmod +x "${SHARED_DIR}/php"
+# Extract the entire tarball to the shared directory
+echo -e "${YELLOW}Extracting distribution tarball...${NC}"
+TARBALL_BASE=$(basename "${TARBALL}" .tar.gz)
+if ! tar -xzf "${TARBALL}" -C "${SHARED_DIR}" --strip-components=1; then
+    echo -e "${RED}ERROR: Failed to extract tarball${NC}"
+    rm -rf "${SHARED_DIR}"
+    exit 1
+fi
 
-# Copy php.ini if it exists
+# Ensure PHP binary is executable
+if [ -f "${SHARED_DIR}/php" ]; then
+    chmod +x "${SHARED_DIR}/php"
+fi
+
+# Copy php.ini if it exists (override tarball version if needed)
 if [ -f "${SCRIPT_DIR}/php.ini" ]; then
     cp "${SCRIPT_DIR}/php.ini" "${SHARED_DIR}/php.ini"
+    echo -e "${GREEN}✓ Using custom php.ini${NC}"
 fi
 
-# Copy router.php if it exists (for PHP built-in server)
+# Copy router.php if it exists (override tarball version if needed)
 if [ -f "${SCRIPT_DIR}/router.php" ]; then
     cp "${SCRIPT_DIR}/router.php" "${SHARED_DIR}/router.php"
-    echo -e "${GREEN}✓ Router script copied to shared directory${NC}"
+    echo -e "${GREEN}✓ Using custom router.php${NC}"
 fi
 
-# Copy the lib/ directory with bundled shared libraries
-# Look for lib/ next to the PHP binary or in extracted distribution
-PHP_DIR=$(dirname "${PHP_BINARY}")
-LIB_DIR=""
-if [ -d "${PHP_DIR}/lib" ]; then
-    LIB_DIR="${PHP_DIR}/lib"
-elif [ -d "${DIST_DIR}/openemr-"*"/lib" ]; then
-    LIB_DIR=$(find "${DIST_DIR}" -type d -name "lib" -path "*/openemr-*" 2>/dev/null | head -1)
+# Verify required files exist
+if [ ! -f "${SHARED_DIR}/php" ]; then
+    echo -e "${RED}ERROR: PHP binary not found in tarball${NC}"
+    rm -rf "${SHARED_DIR}"
+    exit 1
 fi
 
-if [ -n "${LIB_DIR}" ] && [ -d "${LIB_DIR}" ]; then
-    echo "Copying bundled libraries from ${LIB_DIR}..."
-    mkdir -p "${SHARED_DIR}/lib"
-    cp -r "${LIB_DIR}"/* "${SHARED_DIR}/lib/"
-    echo -e "${GREEN}✓ Bundled libraries copied${NC}"
-else
-    echo -e "${YELLOW}Warning: lib/ directory not found - PHP may fail if libraries are missing${NC}"
+if [ ! -f "${SHARED_DIR}/openemr.phar" ]; then
+    echo -e "${RED}ERROR: OpenEMR PHAR not found in tarball${NC}"
+    rm -rf "${SHARED_DIR}"
+    exit 1
 fi
 
-echo -e "${GREEN}✓ Artifacts copied to shared directory${NC}"
+if [ ! -d "${SHARED_DIR}/lib" ]; then
+    echo -e "${YELLOW}Warning: lib/ directory not found in tarball${NC}"
+fi
+
+echo -e "${GREEN}✓ Tarball extracted to shared directory${NC}"
+echo -e "${GREEN}✓ All artifacts ready${NC}"
 
 # Create a startup script for the VM
 cat > "${SHARED_DIR}/start-server.sh" << 'STARTUP_SCRIPT'
