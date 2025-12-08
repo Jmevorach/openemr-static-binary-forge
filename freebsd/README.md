@@ -24,6 +24,23 @@ This build process uses QEMU to run a FreeBSD virtual machine on macOS, allowing
 
 </div>
 
+## Pre-built Binaries
+
+If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/freebsd15-php85-openemr-v7_0_3_4-arm64-12072025).
+
+**Latest Release**: [freebsd15-php85-openemr-v7_0_3_4-arm64-12072025](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/freebsd15-php85-openemr-v7_0_3_4-arm64-12072025)
+
+**To use a pre-built binary on macOS:**
+1. Download the tarball to a new `dist` directory in the `freebsd` directory
+2. Run `./run-freebsd-vm.sh` in the `freebsd` directory
+
+**To use a pre-built binary on FreeBSD:**
+1. Extract the tarball on your FreeBSD system
+2. Copy the `run-web-server.sh` script to the extracted directory
+3. Run `./run-web-server.sh`
+
+**Note**: Pre-built binaries are built on specific hardware configurations (M5 MacBook Pro with 1TB disk and 32 GB RAM) and may have different performance characteristics on your system. For the most optimized build for your hardware, consider building from source using the instructions below.
+
 ## Overview
 
 The FreeBSD workflow consists of these scripts:
