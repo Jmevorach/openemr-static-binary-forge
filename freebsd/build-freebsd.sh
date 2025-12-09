@@ -24,6 +24,39 @@
 # The resulting binary will be in the freebsd/ directory.
 # ==============================================================================
 
+# ==============================================================================
+# Version Configuration
+# ==============================================================================
+# All package versions are defined here as environment variables for easy
+# maintenance and stability. Override these variables before running the script
+# to use different versions.
+#
+# OpenEMR Configuration:
+export OPENEMR_VERSION="${OPENEMR_VERSION:-v7_0_3_4}"
+#
+# FreeBSD Configuration:
+export FREEBSD_VERSION="${FREEBSD_VERSION:-15.0}"
+#
+# PHP Configuration:
+export PHP_VERSION="${PHP_VERSION:-8.5}"
+#
+# FreeBSD Package Versions (pkg package names with version suffixes):
+# Note: These are build-time dependencies used for composer, npm, and PHAR creation.
+# The final binary uses PHP built from source (see PHP_VERSION above).
+# The package version should match PHP_VERSION when possible (e.g., php85 for PHP 8.5).
+# If php85 packages aren't available in FreeBSD repos, override these to use php84, php83, etc. etc..
+# These will be derived from PHP_VERSION after it's finalized (see below).
+export FREEBSD_PHP_PKG="${FREEBSD_PHP_PKG:-}"
+export FREEBSD_PHP_EXTENSIONS_PKG="${FREEBSD_PHP_EXTENSIONS_PKG:-}"
+export FREEBSD_PHP_COMPOSER_PKG="${FREEBSD_PHP_COMPOSER_PKG:-}"
+export FREEBSD_PHP_ZLIB_PKG="${FREEBSD_PHP_ZLIB_PKG:-}"
+export FREEBSD_NODE_PKG="${FREEBSD_NODE_PKG:-node22}"
+export FREEBSD_NPM_PKG="${FREEBSD_NPM_PKG:-npm-node22}"
+export FREEBSD_PYTHON_PKG="${FREEBSD_PYTHON_PKG:-python311}"
+export FREEBSD_GCC_PKG="${FREEBSD_GCC_PKG:-gcc13}"
+export FREEBSD_IMAGEMAGICK_PKG="${FREEBSD_IMAGEMAGICK_PKG:-ImageMagick7}"
+# ==============================================================================
+
 set -euo pipefail
 
 # Ensure output is unbuffered for streaming to terminal
@@ -70,9 +103,20 @@ for arg in "$@"; do
         PHP_VERSION="${arg}"
     fi
 done
-OPENEMR_TAG="${OPENEMR_TAG:-v7_0_3_4}"
+# Use version variables (allow command-line overrides, fallback to exported defaults)
+OPENEMR_TAG="${OPENEMR_TAG:-${OPENEMR_VERSION}}"
 FREEBSD_VERSION="${FREEBSD_VERSION:-15.0}"
 PHP_VERSION="${PHP_VERSION:-8.5}"
+
+# Derive FreeBSD PHP package versions from PHP_VERSION if not explicitly set
+# This ensures we use php85 for PHP 8.5, php84 for PHP 8.4, etc.
+if [ -z "${FREEBSD_PHP_PKG}" ]; then
+    PHP_MAJOR_MINOR=$(echo "${PHP_VERSION}" | cut -d. -f1,2 | tr -d '.')
+    export FREEBSD_PHP_PKG="php${PHP_MAJOR_MINOR}"
+    export FREEBSD_PHP_EXTENSIONS_PKG="php${PHP_MAJOR_MINOR}-extensions"
+    export FREEBSD_PHP_COMPOSER_PKG="php${PHP_MAJOR_MINOR}-composer"
+    export FREEBSD_PHP_ZLIB_PKG="php${PHP_MAJOR_MINOR}-zlib"
+fi
 
 if [[ "${DEBUG_MODE}" == "true" ]]; then
     echo -e "${YELLOW}[DEBUG MODE ENABLED]${NC}"
@@ -441,12 +485,12 @@ echo "Installing build dependencies for static PHP compilation..."
 # Plus all development libraries needed to compile PHP from source
 pkg install -y \
     git \
-    php83 \
-    php83-extensions \
-    php83-composer \
-    php83-zlib \
-    node22 \
-    npm-node22 \
+    ${FREEBSD_PHP_PKG} \
+    ${FREEBSD_PHP_EXTENSIONS_PKG} \
+    ${FREEBSD_PHP_COMPOSER_PKG} \
+    ${FREEBSD_PHP_ZLIB_PKG} \
+    ${FREEBSD_NODE_PKG} \
+    ${FREEBSD_NPM_PKG} \
     curl \
     wget \
     gmake \
@@ -473,10 +517,10 @@ pkg install -y \
     webp \
     curl \
     bzip2 \
-    ImageMagick7 \
-    gcc13 \
+    ${FREEBSD_IMAGEMAGICK_PKG} \
+    ${FREEBSD_GCC_PKG} \
     llvm \
-    python311 \
+    ${FREEBSD_PYTHON_PKG} \
     python3 \
     bash || {
     echo -e "${RED}ERROR: Failed to install some packages${NC}"
@@ -515,6 +559,32 @@ cd "${BUILD_DIR}/openemr-phar"
 echo "Removing unneeded files..."
 rm -rf .git tests/ .github/ docs/ 2>/dev/null || true
 
+# Use PHP binary from standard FreeBSD package location
+# FreeBSD packages install PHP at /usr/local/bin/php (regardless of version)
+PHP_BIN="/usr/local/bin/php"
+
+if [ ! -f "${PHP_BIN}" ] || [ ! -x "${PHP_BIN}" ]; then
+    echo -e "${RED}ERROR: PHP binary not found at ${PHP_BIN}${NC}"
+    echo ""
+    echo "PHP package installed: ${FREEBSD_PHP_PKG}"
+    echo "PHP version: ${PHP_VERSION}"
+    echo ""
+    echo "Installed PHP packages:"
+    pkg info | grep -E "^php[0-9]" || pkg info | grep php || true
+    echo ""
+    echo "Files in /usr/local/bin matching php*:"
+    ls -la /usr/local/bin/php* 2>/dev/null || echo "  (none found)"
+    echo ""
+    echo "Please ensure PHP package ${FREEBSD_PHP_PKG} is installed correctly."
+    exit 1
+fi
+
+echo "Using PHP binary: ${PHP_BIN}"
+${PHP_BIN} -v || {
+    echo -e "${RED}ERROR: PHP binary found but not working${NC}"
+    exit 1
+}
+
 # Install production dependencies
 echo "Installing production dependencies..."
 if [ -f "composer.json" ] && command -v composer >/dev/null 2>&1; then
@@ -529,7 +599,123 @@ if [ -f "composer.json" ] && command -v composer >/dev/null 2>&1; then
 fi
 
 # Build frontend assets (may occasionally cause build issues but is important for full functionality)
-if [ -f "package.json" ] && command -v npm >/dev/null 2>&1; then
+# Ensure PATH includes /usr/local/bin where npm is installed
+export PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin:${PATH}"
+
+echo "Checking for npm and package.json..."
+if [ -f "package.json" ]; then
+    echo "  ✓ package.json found"
+else
+    echo "  ✗ package.json not found"
+fi
+
+# Try to find npm - check multiple locations and names
+NPM_CMD=""
+if command -v npm >/dev/null 2>&1; then
+    NPM_CMD="npm"
+    echo "  ✓ npm found at: $(command -v npm)"
+elif [ -x "/usr/local/bin/npm" ]; then
+    NPM_CMD="/usr/local/bin/npm"
+    echo "  ✓ npm found at: /usr/local/bin/npm"
+elif command -v npm-node22 >/dev/null 2>&1; then
+    NPM_CMD="npm-node22"
+    echo "  ✓ npm-node22 found at: $(command -v npm-node22)"
+    # Create symlink so npm command works
+    ln -sf "$(command -v npm-node22)" /usr/local/bin/npm 2>/dev/null || true
+    if [ -x "/usr/local/bin/npm" ]; then
+        NPM_CMD="npm"
+        echo "  ✓ Created npm symlink"
+    fi
+elif [ -x "/usr/local/bin/npm-node22" ]; then
+    NPM_CMD="/usr/local/bin/npm-node22"
+    echo "  ✓ npm-node22 found at: /usr/local/bin/npm-node22"
+    # Create symlink so npm command works
+    ln -sf /usr/local/bin/npm-node22 /usr/local/bin/npm 2>/dev/null || true
+    if [ -x "/usr/local/bin/npm" ]; then
+        NPM_CMD="npm"
+        echo "  ✓ Created npm symlink"
+    fi
+else
+    # Check if npm package is installed via pkg
+    echo "  Checking pkg database for npm packages..."
+    INSTALLED_NPM=$(pkg info -q | grep -E "^npm" | head -1)
+    if [ -n "${INSTALLED_NPM}" ]; then
+        echo "  Found installed npm package: ${INSTALLED_NPM}"
+        # Try to find where it installed the binary
+        NPM_BIN=$(pkg query "%b" "${INSTALLED_NPM}" 2>/dev/null | grep -E "bin/npm" | head -1)
+        if [ -n "${NPM_BIN}" ] && [ -x "${NPM_BIN}" ]; then
+            NPM_CMD="${NPM_BIN}"
+            echo "  ✓ Found npm binary via pkg query: ${NPM_BIN}"
+        else
+            # Try common locations for the package
+            for possible_path in "/usr/local/bin/${INSTALLED_NPM}" "/usr/local/bin/npm" "/usr/local/bin/npm-node22" "/usr/local/bin/npm-node20" "/usr/local/bin/npm-node18"; do
+                if [ -x "${possible_path}" ]; then
+                    NPM_CMD="${possible_path}"
+                    echo "  ✓ Found npm at: ${possible_path}"
+                    break
+                fi
+            done
+        fi
+    fi
+    
+    # Last resort: search for any npm* binary in common locations
+    if [ -z "${NPM_CMD}" ]; then
+        for search_dir in /usr/local/bin /usr/local/libexec/npm /opt/local/bin; do
+            if [ -d "${search_dir}" ]; then
+                NPM_BIN=$(find "${search_dir}" -name "npm*" -type f -executable 2>/dev/null | head -1)
+                if [ -n "${NPM_BIN}" ]; then
+                    NPM_CMD="${NPM_BIN}"
+                    echo "  ✓ Found npm binary via find: ${NPM_BIN}"
+                    break
+                fi
+            fi
+        done
+    fi
+    
+    # Create symlink if we found npm but it's not named "npm"
+    if [ -n "${NPM_CMD}" ] && [ "${NPM_CMD}" != "npm" ] && [ "${NPM_CMD}" != "/usr/local/bin/npm" ]; then
+        echo "  Creating symlink: /usr/local/bin/npm -> ${NPM_CMD}"
+        ln -sf "${NPM_CMD}" /usr/local/bin/npm 2>/dev/null || true
+        if [ -x "/usr/local/bin/npm" ]; then
+            NPM_CMD="npm"
+            echo "  ✓ Created npm symlink"
+        fi
+    fi
+    
+    if [ -z "${NPM_CMD}" ]; then
+        echo "  ✗ ERROR: npm not found anywhere"
+        echo "  Searched in:"
+        echo "    - PATH: $(echo $PATH | tr ':' '\n' | head -5)"
+        echo "    - /usr/local/bin/npm"
+        echo "    - /usr/local/bin/npm-node22"
+        echo "    - All npm* files in /usr/local/bin"
+        echo ""
+        echo "  Installed node packages:"
+        pkg info | grep -E "^node|^npm" || echo "    (none found)"
+        echo ""
+        echo "  Files in /usr/local/bin matching npm*:"
+        ls -la /usr/local/bin/npm* 2>/dev/null || echo "    (none found)"
+        echo ""
+        echo "  Attempting to install npm-node22..."
+        pkg install -y npm-node22 2>&1 | tail -5 || echo "    (installation failed)"
+        # Try one more time after installation attempt
+        if [ -x "/usr/local/bin/npm-node22" ]; then
+            NPM_CMD="/usr/local/bin/npm-node22"
+            ln -sf /usr/local/bin/npm-node22 /usr/local/bin/npm 2>/dev/null || true
+            if [ -x "/usr/local/bin/npm" ]; then
+                NPM_CMD="npm"
+                echo "  ✓ npm installed and symlink created"
+            fi
+        fi
+    fi
+fi
+
+if [ -n "${NPM_CMD}" ]; then
+    echo "  Using npm: ${NPM_CMD}"
+    ${NPM_CMD} --version 2>&1 || echo "    (version check failed)"
+fi
+
+if [ -f "package.json" ] && [ -n "${NPM_CMD}" ]; then
     echo "Building frontend assets..."
     
     # Make npm fully non-interactive
@@ -539,18 +725,31 @@ if [ -f "package.json" ] && command -v npm >/dev/null 2>&1; then
     
     # Install global dependencies needed by OpenEMR's postinstall scripts
     echo "Installing global npm dependencies (napa, gulp-cli)..."
-    npm install -g --yes napa gulp-cli 2>&1 || {
+    ${NPM_CMD} install -g --yes napa gulp-cli 2>&1 || {
         echo -e "${YELLOW}WARNING: Failed to install global npm deps${NC}"
     }
     
     # Install npm dependencies (WITHOUT --production flag to get devDependencies needed for building)
     echo "Installing npm dependencies (including devDependencies for build tools)..."
-    npm ci 2>&1 || {
+    echo "Current directory: $(pwd)"
+    echo "npm version: $(${NPM_CMD} --version 2>&1 || echo 'unknown')"
+    echo "node version: $(node --version 2>&1 || echo 'unknown')"
+    
+    ${NPM_CMD} ci 2>&1 || {
         echo -e "${YELLOW}WARNING: npm ci had issues, trying npm install as fallback...${NC}"
-        npm install 2>&1 || {
+        ${NPM_CMD} install 2>&1 || {
             echo -e "${YELLOW}WARNING: npm install also had issues, but continuing...${NC}"
         }
     }
+    
+    echo "npm dependencies installed. Checking node_modules..."
+    if [ -d "node_modules" ]; then
+        echo "  ✓ node_modules directory exists"
+        MODULE_COUNT=$(find node_modules -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+        echo "  Found ${MODULE_COUNT} modules"
+    else
+        echo -e "${YELLOW}  WARNING: node_modules directory not found${NC}"
+    fi
     
     # Run build command to compile CSS/JS assets
     # OpenEMR uses Gulp via npm run build to compile CSS and JavaScript
@@ -558,24 +757,38 @@ if [ -f "package.json" ] && command -v npm >/dev/null 2>&1; then
     BUILD_SUCCESS=false
     
     # OpenEMR uses 'npm run build' which triggers Gulp to compile assets
-    if npm run | grep -q "^  build" || grep -q '"build"' package.json 2>/dev/null; then
+    echo "Checking available npm scripts..."
+    ${NPM_CMD} run 2>&1 | head -20 || echo "Could not list npm scripts"
+    
+    if ${NPM_CMD} run 2>&1 | grep -q "^  build" || grep -q '"build"' package.json 2>/dev/null; then
         echo "Running npm run build to compile CSS and JavaScript assets..."
-        npm run build 2>&1 && {
+        echo "This may take several minutes..."
+        ${NPM_CMD} run build 2>&1 | tee /tmp/npm-build.log && {
             BUILD_SUCCESS=true
             echo -e "${GREEN}✓ Frontend assets built successfully (CSS and JavaScript compiled)${NC}"
         } || {
             echo -e "${YELLOW}WARNING: npm run build had issues${NC}"
+            echo "Last 20 lines of build output:"
+            tail -20 /tmp/npm-build.log 2>/dev/null || true
         }
     else
+        echo "npm run build script not found, trying gulp directly..."
         # Fallback: try gulp directly if npm run build doesn't exist
         if command -v gulp >/dev/null 2>&1 && ([ -f "gulpfile.js" ] || [ -f "Gulpfile.js" ]); then
             echo "Running gulp directly to build frontend assets..."
-            gulp 2>&1 && {
+            echo "This may take several minutes..."
+            gulp 2>&1 | tee /tmp/gulp-build.log && {
                 BUILD_SUCCESS=true
                 echo -e "${GREEN}✓ Gulp build completed successfully${NC}"
             } || {
                 echo -e "${YELLOW}WARNING: gulp build had issues${NC}"
+                echo "Last 20 lines of build output:"
+                tail -20 /tmp/gulp-build.log 2>/dev/null || true
             }
+        else
+            echo -e "${YELLOW}WARNING: Neither npm run build nor gulp found${NC}"
+            echo "gulp command: $(command -v gulp 2>&1 || echo 'not found')"
+            echo "gulpfile.js exists: $([ -f "gulpfile.js" ] && echo 'yes' || echo 'no')"
         fi
     fi
     
@@ -584,11 +797,57 @@ if [ -f "package.json" ] && command -v npm >/dev/null 2>&1; then
         echo -e "${RED}CSS and JavaScript assets were NOT compiled.${NC}"
         echo -e "${RED}OpenEMR will not have working styles or JavaScript.${NC}"
         echo ""
+        echo "Debugging information:"
+        echo "  - Current directory: $(pwd)"
+        echo "  - npm location: ${NPM_CMD:-'not found'}"
+        echo "  - node location: $(command -v node 2>&1 || echo 'not found')"
+        echo "  - gulp location: $(command -v gulp 2>&1 || echo 'not found')"
+        echo "  - package.json exists: $([ -f "package.json" ] && echo 'yes' || echo 'no')"
+        echo "  - gulpfile.js exists: $([ -f "gulpfile.js" ] && echo 'yes' || echo 'no')"
+        echo "  - node_modules exists: $([ -d "node_modules" ] && echo 'yes' || echo 'no')"
+        echo ""
         echo "This is a critical issue. Please check:"
         echo "  - Node.js and npm are properly installed"
         echo "  - All npm dependencies installed correctly"
         echo "  - gulp-cli is installed globally"
         exit 1
+    fi
+    
+    # Verify that frontend assets were actually built
+    echo "Verifying frontend assets were built..."
+    ASSETS_FOUND=false
+    
+    # Check for common OpenEMR asset locations
+    if [ -d "public/assets" ] && [ "$(find public/assets -type f 2>/dev/null | wc -l)" -gt 0 ]; then
+        echo "  ✓ Found assets in public/assets/"
+        ASSETS_FOUND=true
+    fi
+    
+    if [ -d "interface/main/css" ] && [ "$(find interface/main/css -name "*.css" 2>/dev/null | wc -l)" -gt 0 ]; then
+        echo "  ✓ Found CSS files in interface/main/css/"
+        ASSETS_FOUND=true
+    fi
+    
+    if [ -d "interface/main/js" ] && [ "$(find interface/main/js -name "*.js" 2>/dev/null | wc -l)" -gt 0 ]; then
+        echo "  ✓ Found JS files in interface/main/js/"
+        ASSETS_FOUND=true
+    fi
+    
+    # Check for gulp output directories
+    if [ -d "gulp" ] && [ "$(find gulp -type f 2>/dev/null | wc -l)" -gt 0 ]; then
+        echo "  ✓ Found gulp output files"
+        ASSETS_FOUND=true
+    fi
+    
+    # List some example files to verify
+    echo "Sample of built asset files:"
+    find . -type f \( -name "*.css" -o -name "*.js" \) -path "*/public/*" -o -path "*/interface/*" 2>/dev/null | head -10 || true
+    
+    if [ "${ASSETS_FOUND}" != "true" ]; then
+        echo -e "${YELLOW}WARNING: Could not verify frontend assets were built${NC}"
+        echo "This may cause display issues. Continuing anyway..."
+    else
+        echo -e "${GREEN}✓ Frontend assets verified${NC}"
     fi
     
     echo -e "${GREEN}Frontend build step completed successfully.${NC}"
@@ -621,7 +880,22 @@ if (extension_loaded('zlib')) {
 PHARBUILDER
 
 echo "Running PHAR builder..."
-php -d phar.readonly=0 -d display_errors=1 -d error_reporting=E_ALL "${BUILD_DIR}/create-phar.php" "${BUILD_DIR}/openemr.phar" "${BUILD_DIR}/openemr-phar" 2>&1 || {
+echo "Source directory: ${BUILD_DIR}/openemr-phar"
+echo "Verifying source directory contains frontend assets before PHAR creation..."
+if [ -d "${BUILD_DIR}/openemr-phar/public/assets" ]; then
+    ASSET_COUNT=$(find "${BUILD_DIR}/openemr-phar/public/assets" -type f 2>/dev/null | wc -l | tr -d ' ')
+    echo "  Found ${ASSET_COUNT} files in public/assets/"
+fi
+if [ -d "${BUILD_DIR}/openemr-phar/interface/main/css" ]; then
+    CSS_COUNT=$(find "${BUILD_DIR}/openemr-phar/interface/main/css" -name "*.css" 2>/dev/null | wc -l | tr -d ' ')
+    echo "  Found ${CSS_COUNT} CSS files in interface/main/css/"
+fi
+if [ -d "${BUILD_DIR}/openemr-phar/interface/main/js" ]; then
+    JS_COUNT=$(find "${BUILD_DIR}/openemr-phar/interface/main/js" -name "*.js" 2>/dev/null | wc -l | tr -d ' ')
+    echo "  Found ${JS_COUNT} JS files in interface/main/js/"
+fi
+
+${PHP_BIN} -d phar.readonly=0 -d display_errors=1 -d error_reporting=E_ALL "${BUILD_DIR}/create-phar.php" "${BUILD_DIR}/openemr.phar" "${BUILD_DIR}/openemr-phar" 2>&1 || {
     echo -e "${RED}ERROR: PHP PHAR builder failed with exit code $?${NC}"
     exit 1
 }
@@ -630,6 +904,16 @@ if [ ! -f "${BUILD_DIR}/openemr.phar" ]; then
     echo -e "${RED}ERROR: Failed to create PHAR file - file not found${NC}"
     exit 1
 fi
+
+# Verify PHAR contains frontend assets
+echo "Verifying PHAR contains frontend assets..."
+PHAR_SIZE=$(stat -f%z "${BUILD_DIR}/openemr.phar" 2>/dev/null || stat -c%s "${BUILD_DIR}/openemr.phar" 2>/dev/null || echo "unknown")
+echo "  PHAR size: ${PHAR_SIZE} bytes"
+
+# Try to list some files from the PHAR to verify assets are included
+${PHP_BIN} -r "\$phar = new Phar('${BUILD_DIR}/openemr.phar'); \$files = \$phar->getFiles(); \$assetFiles = array_filter(\$files, function(\$f) { return strpos(\$f, 'public/assets') !== false || strpos(\$f, 'interface/main/css') !== false || strpos(\$f, 'interface/main/js') !== false; }); echo 'Found ' . count(\$assetFiles) . ' frontend asset files in PHAR\n'; if (count(\$assetFiles) > 0) { echo 'Sample files:\n'; foreach (array_slice(\$assetFiles, 0, 5) as \$file) { echo '  - ' . \$file . '\n'; } }" 2>/dev/null || {
+    echo "  (Could not verify PHAR contents, but PHAR was created)"
+}
 
 echo -e "${GREEN}✓ PHAR created${NC}"
 echo ""
@@ -969,6 +1253,12 @@ export FREEBSD_VERSION="${FREEBSD_VERSION}"
 export ARCH="${FREEBSD_ARCH}"
 export PHP_VERSION="${PHP_VERSION}"
 export PARALLEL_JOBS="${PARALLEL_JOBS}"
+export FREEBSD_PHP_PKG="${FREEBSD_PHP_PKG}"
+export FREEBSD_PHP_EXTENSIONS_PKG="${FREEBSD_PHP_EXTENSIONS_PKG}"
+export FREEBSD_PHP_COMPOSER_PKG="${FREEBSD_PHP_COMPOSER_PKG}"
+export FREEBSD_PHP_ZLIB_PKG="${FREEBSD_PHP_ZLIB_PKG}"
+export FREEBSD_NODE_PKG="${FREEBSD_NODE_PKG}"
+export FREEBSD_NPM_PKG="${FREEBSD_NPM_PKG}"
 ENVFILE
 
 # For Apple Silicon, use HVF acceleration

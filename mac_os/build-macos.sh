@@ -19,6 +19,29 @@
 # The resulting binary will be in the mac_os/ directory.
 # ==============================================================================
 
+# ==============================================================================
+# Version Configuration
+# ==============================================================================
+# All package versions are defined here as environment variables for easy
+# maintenance and stability. Override these variables before running the script
+# to use different versions.
+#
+# OpenEMR Configuration:
+export OPENEMR_VERSION="${OPENEMR_VERSION:-v7_0_3_4}"
+#
+# PHP Configuration:
+export PHP_VERSION="${PHP_VERSION:-8.5}"
+#
+# Static PHP CLI (SPC) Configuration:
+# The static-php-cli is downloaded as a pre-built release from GitHub.
+# Pinned to release 2.7.9 for stability. Override to use a different release.
+export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.7.9}"
+export STATIC_PHP_CLI_REPO="${STATIC_PHP_CLI_REPO:-crazywhalecc/static-php-cli}"
+#
+# PHP Extensions (comma-separated list):
+export PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick}"
+# ==============================================================================
+
 set -euo pipefail
 
 # Ensure output is unbuffered for streaming to terminal
@@ -46,7 +69,8 @@ for arg in "$@"; do
         OPENEMR_TAG="${arg}"
     fi
 done
-OPENEMR_TAG="${OPENEMR_TAG:-v7_0_3_4}"
+# Use version variables (allow command-line overrides, fallback to exported defaults)
+OPENEMR_TAG="${OPENEMR_TAG:-${OPENEMR_VERSION}}"
 
 if [[ "${DEBUG_MODE}" == "true" ]]; then
     echo -e "${YELLOW}[DEBUG MODE ENABLED]${NC}"
@@ -394,21 +418,34 @@ else
 fi
 
 SPC_RELEASE="spc-${SPC_OS}-${SPC_ARCH}.tar.gz"
-SPC_URL="https://github.com/crazywhalecc/static-php-cli/releases/latest/download/${SPC_RELEASE}"
 
-echo "Downloading Static PHP CLI for ${SPC_OS}-${SPC_ARCH}..."
+# Determine download URL based on whether a specific release tag is provided
+if [ -n "${STATIC_PHP_CLI_RELEASE_TAG}" ]; then
+    SPC_URL="https://github.com/${STATIC_PHP_CLI_REPO}/releases/download/${STATIC_PHP_CLI_RELEASE_TAG}/${SPC_RELEASE}"
+    echo "Downloading Static PHP CLI ${STATIC_PHP_CLI_RELEASE_TAG} for ${SPC_OS}-${SPC_ARCH}..."
+else
+    SPC_URL="https://github.com/${STATIC_PHP_CLI_REPO}/releases/latest/download/${SPC_RELEASE}"
+    echo "Downloading Static PHP CLI (latest release) for ${SPC_OS}-${SPC_ARCH}..."
+fi
+
 if command -v curl >/dev/null 2>&1; then
     curl -L -o "${BUILD_DIR}/${SPC_RELEASE}" "${SPC_URL}" || {
-        echo -e "${YELLOW}Direct download failed, trying to find latest release...${NC}"
-        # Fallback: try to get latest release URL
-        LATEST_URL=$(curl -s https://api.github.com/repos/crazywhalecc/static-php-cli/releases/latest | grep "browser_download_url.*${SPC_RELEASE}" | cut -d '"' -f 4)
-        if [ -n "${LATEST_URL}" ]; then
-            curl -L -o "${BUILD_DIR}/${SPC_RELEASE}" "${LATEST_URL}" || {
-                echo -e "${RED}ERROR: Failed to download Static PHP CLI${NC}"
+        if [ -z "${STATIC_PHP_CLI_RELEASE_TAG}" ]; then
+            echo -e "${YELLOW}Direct download failed, trying to find latest release via API...${NC}"
+            # Fallback: try to get latest release URL via API
+            LATEST_URL=$(curl -s "https://api.github.com/repos/${STATIC_PHP_CLI_REPO}/releases/latest" | grep "browser_download_url.*${SPC_RELEASE}" | cut -d '"' -f 4)
+            if [ -n "${LATEST_URL}" ]; then
+                curl -L -o "${BUILD_DIR}/${SPC_RELEASE}" "${LATEST_URL}" || {
+                    echo -e "${RED}ERROR: Failed to download Static PHP CLI${NC}"
+                    exit 1
+                }
+            else
+                echo -e "${RED}ERROR: Could not find Static PHP CLI release${NC}"
                 exit 1
-            }
+            fi
         else
-            echo -e "${RED}ERROR: Could not find Static PHP CLI release${NC}"
+            echo -e "${RED}ERROR: Failed to download Static PHP CLI release ${STATIC_PHP_CLI_RELEASE_TAG}${NC}"
+            echo "URL: ${SPC_URL}"
             exit 1
         fi
     }
@@ -445,8 +482,8 @@ echo -e "${YELLOW}Step 3/5: Preparing SPC and downloading dependencies...${NC}"
 
 cd "${BUILD_DIR}"
 
-# PHP extensions required by OpenEMR
-PHP_EXTENSIONS="bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick"
+# PHP extensions required by OpenEMR (use from environment or default)
+PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick}"
 
 echo "Running SPC doctor check..."
 "${SPC_BIN}" doctor --auto-fix || {
@@ -467,7 +504,7 @@ DOWNLOAD_RETRY_COUNT=0
 
 while [ ${DOWNLOAD_RETRY_COUNT} -lt ${MAX_DOWNLOAD_RETRIES} ]; do
     if "${SPC_BIN}" download \
-        --with-php=8.5 \
+        --with-php="${PHP_VERSION}" \
         --for-extensions="${PHP_EXTENSIONS}" \
         --retry 5; then
         break

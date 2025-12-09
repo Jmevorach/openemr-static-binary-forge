@@ -24,6 +24,33 @@
 # The resulting binary will be in the linux_arm64/ directory.
 # ==============================================================================
 
+# ==============================================================================
+# Version Configuration
+# ==============================================================================
+# All package versions are defined here as environment variables for easy
+# maintenance and stability. Override these variables before running the script
+# to use different versions.
+#
+# OpenEMR Configuration:
+export OPENEMR_VERSION="${OPENEMR_VERSION:-v7_0_3_4}"
+#
+# Docker Base Image:
+export DOCKER_BASE_IMAGE="${DOCKER_BASE_IMAGE:-ubuntu:24.04}"
+#
+# PHP Configuration:
+export PHP_VERSION="${PHP_VERSION:-8.5}"
+#
+# Static PHP CLI (SPC) Configuration:
+# The static-php-cli repository is cloned from GitHub. Pinned to a specific commit
+# for stability. Override STATIC_PHP_CLI_COMMIT to use a different commit.
+export STATIC_PHP_CLI_REPO="${STATIC_PHP_CLI_REPO:-https://github.com/crazywhalecc/static-php-cli.git}"
+export STATIC_PHP_CLI_BRANCH="${STATIC_PHP_CLI_BRANCH:-main}"
+export STATIC_PHP_CLI_COMMIT="${STATIC_PHP_CLI_COMMIT:-59a6e2753265622b7e8d599f791f1ad3c2e60388}"
+#
+# PHP Extensions (comma-separated list):
+export PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick}"
+# ==============================================================================
+
 set -euo pipefail
 
 # Ensure output is unbuffered for streaming to terminal
@@ -51,8 +78,9 @@ for arg in "$@"; do
         OPENEMR_TAG="${arg}"
     fi
 done
-OPENEMR_TAG="${OPENEMR_TAG:-v7_0_3_4}"
-PHP_VERSION="${PHP_VERSION:-8.5}"
+# Use version variables (allow command-line overrides, fallback to exported defaults)
+OPENEMR_TAG="${OPENEMR_TAG:-${OPENEMR_VERSION}}"
+PHP_VERSION="${PHP_VERSION:-${PHP_VERSION}}"
 
 if [[ "${DEBUG_MODE}" == "true" ]]; then
     echo -e "${YELLOW}[DEBUG MODE ENABLED]${NC}"
@@ -90,7 +118,7 @@ echo -e "${GREEN}✓ Docker is installed and running${NC}"
 echo ""
 
 # Docker image to use for building
-DOCKER_IMAGE="ubuntu:24.04"
+DOCKER_IMAGE="${DOCKER_BASE_IMAGE}"
 ARCH="aarch64"
 TARGET_ARCH="arm64"
 
@@ -101,7 +129,8 @@ echo ""
 # Create a Dockerfile for the build environment
 DOCKERFILE="${SCRIPT_DIR}/Dockerfile.build"
 cat > "${DOCKERFILE}" << DOCKERFILE_EOF
-FROM ubuntu:24.04
+ARG DOCKER_BASE_IMAGE=${DOCKER_BASE_IMAGE}
+FROM \${DOCKER_BASE_IMAGE}
 
 # Accept PHP version as build argument
 ARG PHP_VERSION_MAJOR_MINOR=${PHP_VERSION}
@@ -192,7 +221,9 @@ DOCKERFILE_EOF
 
 echo "Building Docker image for Linux arm64 build..."
 echo "Using PHP version: ${PHP_VERSION}"
+echo "Using base image: ${DOCKER_BASE_IMAGE}"
 docker build --platform linux/arm64 \
+    --build-arg DOCKER_BASE_IMAGE="${DOCKER_BASE_IMAGE}" \
     --build-arg PHP_VERSION_MAJOR_MINOR="${PHP_VERSION}" \
     -t openemr-builder-arm64:latest \
     -f "${DOCKERFILE}" \
@@ -212,6 +243,10 @@ set -euo pipefail
 
 OPENEMR_TAG="${1:-v7_0_3_4}"
 PHP_VERSION="${2:-8.5}"
+STATIC_PHP_CLI_REPO="${3:-https://github.com/crazywhalecc/static-php-cli.git}"
+STATIC_PHP_CLI_BRANCH="${4:-main}"
+STATIC_PHP_CLI_COMMIT="${5:-}"
+PHP_EXTENSIONS="${6:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick}"
 ARCH="aarch64"
 TARGET_ARCH="arm64"
 
@@ -410,8 +445,24 @@ while [ ${CLONE_ATTEMPT} -lt ${MAX_CLONE_ATTEMPTS} ] && [ "${CLONE_SUCCESS}" != 
     CLONE_ATTEMPT=$((CLONE_ATTEMPT + 1))
     echo "Clone attempt ${CLONE_ATTEMPT}/${MAX_CLONE_ATTEMPTS}..."
     
-    if git clone --depth 1 https://github.com/crazywhalecc/static-php-cli.git "${SPC_BUILD_DIR}"; then
-        CLONE_SUCCESS=true
+    # Determine clone command based on whether commit or branch is specified
+    if [ -n "${STATIC_PHP_CLI_COMMIT}" ]; then
+        if git clone --depth 1 "${STATIC_PHP_CLI_REPO}" "${SPC_BUILD_DIR}"; then
+            cd "${SPC_BUILD_DIR}" && git checkout "${STATIC_PHP_CLI_COMMIT}" && cd /tmp
+            CLONE_SUCCESS=true
+        fi
+    elif [ -n "${STATIC_PHP_CLI_BRANCH}" ]; then
+        if git clone --depth 1 --branch "${STATIC_PHP_CLI_BRANCH}" "${STATIC_PHP_CLI_REPO}" "${SPC_BUILD_DIR}"; then
+            CLONE_SUCCESS=true
+        fi
+    else
+        if git clone --depth 1 "${STATIC_PHP_CLI_REPO}" "${SPC_BUILD_DIR}"; then
+            CLONE_SUCCESS=true
+        fi
+    fi
+    
+    if [ "${CLONE_SUCCESS}" = "true" ]; then
+        break
     else
         echo "Clone failed, retrying..."
         rm -rf "${SPC_BUILD_DIR}" 2>/dev/null || true
@@ -496,7 +547,7 @@ echo ""
 
 # Step 3: Download dependencies
 echo "Step 3/5: Downloading dependencies..."
-PHP_EXTENSIONS="bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick"
+# PHP_EXTENSIONS is passed as parameter
 
 # Run SPC commands from /tmp to avoid volume mount issues
 cd /tmp
@@ -614,7 +665,7 @@ docker run --name "${CONTAINER_NAME}" \
     -v "${OUTPUT_DIR}:/output" \
     -w /build \
     openemr-builder-arm64:latest \
-    bash /build/docker-build-internal.sh "${OPENEMR_TAG}" "${PHP_VERSION}" || {
+    bash /build/docker-build-internal.sh "${OPENEMR_TAG}" "${PHP_VERSION}" "${STATIC_PHP_CLI_REPO}" "${STATIC_PHP_CLI_BRANCH}" "${STATIC_PHP_CLI_COMMIT}" "${PHP_EXTENSIONS}" || {
     echo -e "${RED}ERROR: Docker build failed${NC}"
     echo ""
     echo "Attempting to extract build logs from container..."
