@@ -2,7 +2,7 @@
 
 <img src="logo/openemr_static_binary_forge_logo.png" alt="OpenEMR Static Binary Forge Logo" width="500">
 
-*This project provides tools to build self-contained, statically compiled OpenEMR binaries for multiple platforms using Static PHP CLI (SPC). The resulting binaries include OpenEMR and PHP runtime with all dependencies in a single executable that can run without additional dependencies (note: OpenEMR needs an external MySQL database to function whether it's run in a static binary or not).*
+*This project provides tools to build self-contained, statically compiled OpenEMR binaries for multiple platforms. Three out of four builds (macOS, Linux amd64, and Linux arm64) use Static PHP CLI (SPC), while the FreeBSD build uses a custom method to compile a static distribution. The resulting binaries include OpenEMR and PHP runtime with all dependencies in a single executable that can run without additional dependencies (note: OpenEMR needs an external MySQL database to function whether it's run in a static binary or not).*
 
 </div>
 
