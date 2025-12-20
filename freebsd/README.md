@@ -6,6 +6,10 @@ This build process uses QEMU to run a FreeBSD virtual machine on macOS, allowing
 
 <div align="center">
 
+<img src="../images/freebsd.gif" alt="Animated GIF of the FreeBSD Build Process (5x speedup) width="500">
+
+*Animated GIF of the FreeBSD Build Process (5x speedup)*
+
 <img src="../images/running_freebsd_with_qemu_on_mac_os.png" alt="Terminal Output of Running FreeBSD on MacOS Using QEMU as Part of the Build Script" width="500">
 
 *Terminal Output of Running FreeBSD on MacOS Using QEMU as Part of the Build Script*
