@@ -4,6 +4,10 @@ Complete guide for building OpenEMR static binaries for Linux arm64 using Docker
 
 <div align="center">
 
+<img src="../images/linuxarm64.gif" alt="Animated GIF of the Linux (arm64) Build Process (5x speedup)" width="500">
+
+*Animated GIF of the Linux (arm64) Build Process (5x speedup)*
+
 <img src="../images/serving_openemr_static_binary_arm64.png" alt="OpenEMR being served out of a static binary on a Linux ARM64 Based Container" width="500">
 
 *Serving OpenEMR Using a Static Binary on a Linux ARM64 Based Container*
