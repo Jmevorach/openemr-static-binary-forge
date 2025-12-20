@@ -4,7 +4,7 @@ Complete guide for building OpenEMR static binaries for Linux amd64 using Docker
 
 <div align="center">
 
-<img src="../images/linuxamd64.gif" alt="Animated GIF of the Linux (amd64) Build Process (5x speedup) width="500">
+<img src="../images/linuxamd64.gif" alt="Animated GIF of the Linux (amd64) Build Process (5x speedup)" width="500">
 
 *Animated GIF of the Linux (amd64) Build Process (5x speedup)*
 

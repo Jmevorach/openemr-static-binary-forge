@@ -4,7 +4,7 @@ Complete guide for building OpenEMR static binaries on macOS using Static PHP CL
 
 <div align="center">
 
-<img src="../images/macos.gif" alt="Animated GIF of the macOS Build Process (5x speedup) width="500">
+<img src="../images/macos.gif" alt="Animated GIF of the macOS Build Process (5x speedup)" width="500">
 
 *Animated GIF of the macOS Build Process (5x speedup)*
 
