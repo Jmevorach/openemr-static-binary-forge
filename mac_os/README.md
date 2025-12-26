@@ -2,6 +2,25 @@
 
 Complete guide for building OpenEMR static binaries on macOS using Static PHP CLI (SPC).
 
+## Table of Contents
+
+- [Pre-built Binaries](#pre-built-binaries)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [Run OpenEMR](#4-run-openemr)
+  - [Using the Binary](#using-the-binary)
+  - [Using PHP CGI Binary with Apache](#using-php-cgi-binary-with-apache)
+- [PHP Configuration (php.ini)](#php-configuration-phpini)
+- [Project Structure](#project-structure)
+- [How It Works](#how-it-works)
+- [Performance Optimization](#performance-optimization)
+- [Troubleshooting](#troubleshooting)
+- [Limitations](#limitations)
+- [PHP Extensions Included](#php-extensions-included)
+- [SAPIs (Server APIs) Included](#sapis-server-apis-included)
+- [References](#references)
+- [Support](#support)
+
 <div align="center">
 
 <img src="../images/macos.gif" alt="Animated GIF of the macOS Build Process (5x speedup)" width="500">
@@ -20,9 +39,9 @@ Complete guide for building OpenEMR static binaries on macOS using Static PHP CL
 
 ## Pre-built Binaries
 
-If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/mac_os-php85-openemr-v7_0_3_4-arm64-12072025).
+If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/mac_os-php85-openemr-v7_0_4-arm64-12262025).
 
-**Latest Release**: [mac_os-php85-openemr-v7_0_3_4-arm64-12072025](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/mac_os-php85-openemr-v7_0_3_4-arm64-12072025)
+**Latest Release**: [mac_os-php85-openemr-v7_0_4-arm64-12262025](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/mac_os-php85-openemr-v7_0_4-arm64-12262025)
 
 To use a pre-built binary:
 1. Download the release assets to the `mac_os` directory
@@ -89,21 +108,26 @@ cd mac_os
 ./build-macos.sh [openemr_version]
 ```
 
-For example, to build OpenEMR version 7.0.3.4:
+For example, to build OpenEMR version 7.0.4:
 ```bash
-./build-macos.sh v7_0_3_4
+./build-macos.sh v7_0_4
 ```
 
-If no version is specified, it defaults to `v7_0_3_4`.
+If no version is specified, it defaults to `v7_0_4`.
 
 The script will display detected system resources and optimization settings before building.
 
 ### 4. Run OpenEMR
 
-After a successful build, the binary will be located at:
+After a successful build, the following binaries will be created:
 ```
-mac_os/openemr-v7_0_3_4-macos-arm64    # For Apple Silicon (M1/M2/M3/M4/M5)
-mac_os/openemr-v7_0_3_4-macos-x86_64   # For Intel Macs
+mac_os/openemr-v7_0_4-macos-arm64        # Combined binary (Apple Silicon)
+mac_os/openemr-v7_0_4-macos-x86_64       # Combined binary (Intel)
+mac_os/php-cli-v7_0_4-macos-arm64        # PHP CLI binary (Apple Silicon)
+mac_os/php-cli-v7_0_4-macos-x86_64       # PHP CLI binary (Intel)
+mac_os/php-cgi-v7_0_4-macos-arm64        # PHP CGI binary (Apple Silicon)
+mac_os/php-cgi-v7_0_4-macos-x86_64       # PHP CGI binary (Intel)
+mac_os/openemr-v7_0_4.phar               # OpenEMR PHAR archive
 ```
 
 #### Using the Binary
@@ -128,6 +152,49 @@ This script:
 3. Makes OpenEMR accessible at `http://localhost:8080`
 
 **Note**: The launcher uses PHP's built-in server, which is suitable for development and demonstration. For production use, you should use a production web server (Apache, Nginx) configured according to [OpenEMR's documentation](https://github.com/openemr/openemr-devops/tree/master/docker/openemr/7.0.5).
+
+#### Using PHP CGI Binary with Apache
+
+The build also creates a PHP CGI binary (`php-cgi-*-macos-*`) that can be used with CGI-enabled web servers like Apache.
+
+## Running OpenEMR with Apache
+
+The `apache/` directory contains configuration files and scripts for running OpenEMR locally with Apache HTTP Server on macOS. This setup uses the static PHP CGI binary.
+
+### Prerequisites
+
+1.  **Apache HTTP Server**: Install via Homebrew:
+    ```bash
+    brew install httpd
+    ```
+2.  **Built Binaries**: Ensure you've run `./build-macos.sh` first.
+
+### Automated Setup (Recommended)
+
+1.  **Extract OpenEMR**:
+    ```bash
+    cd mac_os/apache
+    ./extract-openemr.sh
+    ```
+2.  **Configure Apache**:
+    ```bash
+    sudo ./setup-apache-config.sh
+    ```
+    This script automatically updates configuration paths, enables required modules, and adds the include directive to your Apache setup.
+
+3.  **Start Apache**:
+    ```bash
+    brew services start httpd
+    ```
+
+OpenEMR will be available at `http://localhost:8080` (Homebrew default) or `http://localhost`.
+
+### Key Components
+- **`httpd-openemr.conf`**: VirtualHost configuration for OpenEMR.
+- **`php-wrapper.sh`**: CGI wrapper that executes the static PHP binary.
+- **`test-cgi-setup.sh`**: Verification script to test the CGI environment.
+
+For detailed manual instructions and benchmarking details, see [mac_os/apache/README.md](apache/README.md).
 
 ### PHP Configuration (php.ini)
 
@@ -158,10 +225,15 @@ See the main [README.md](../README.md) for more details about php.ini configurat
 
 ```
 mac_os/
-├── build-macos.sh       # Main build script
-├── run-web-server.sh    # Web server launcher script
-├── php.ini              # PHP configuration file (customizable)
-└── README.md            # This file
+├── build-macos.sh             # Main build script (PHP 8.5)
+├── run-web-server.sh          # Web server launcher script (built-in server)
+├── php.ini                    # PHP configuration file (customizable)
+├── apache/                    # Apache HTTP Server integration
+│   ├── httpd-openemr.conf     # VirtualHost template
+│   ├── php-wrapper.sh         # PHP CGI wrapper script
+│   ├── setup-apache-config.sh # Automated setup script
+│   └── README.md              # Detailed Apache instructions
+└── README.md                  # This file
 ```
 
 ## How It Works
@@ -192,6 +264,7 @@ The build process follows these steps:
 
 5. **Build Static PHP Binaries**: Compiles PHP with all extensions
    - Builds PHP CLI binary with all required extensions
+   - Builds PHP CGI binary for CGI-based web server integration
    - Builds MicroSFX binary (self-extracting PHP binary format)
    - Uses parallel compilation for faster builds
    - All dependencies are statically linked
@@ -201,7 +274,11 @@ The build process follows these steps:
    - Creates a single self-contained executable
    - The binary includes both PHP runtime and OpenEMR application
 
-7. **Output**: The final static binary is saved in the `mac_os/` directory
+7. **Output**: The following files are saved in the `mac_os/` directory:
+   - `openemr-*-macos-*` - Combined binary (self-contained executable)
+   - `php-cli-*-macos-*` - PHP CLI binary (for PHAR extraction and CLI operations)
+   - `php-cgi-*-macos-*` - PHP CGI binary (for CGI-based web servers)
+   - `openemr-*.phar` - OpenEMR PHAR archive
 
 ### Static Binary Details
 
@@ -307,6 +384,20 @@ This will:
 - Provide more detailed error information
 - Allow you to inspect build artifacts
 
+### Binary Won't Run (Shared Library Issues)
+
+If the binary fails to start with "Shared object not found" or similar errors:
+1. Ensure you have installed the required system libraries via Homebrew (see [Prerequisites](#2-install-system-libraries-for-php-extensions)).
+2. On Intel Macs, ensure you're using the `x86_64` binary.
+3. On Apple Silicon (M1/M2/M3/M4/M5), ensure you're using the `arm64` binary.
+
+### Apache CGI Errors
+
+If using Apache and getting 500 errors:
+- Check `/usr/local/var/log/httpd/error_log` (Homebrew Apache) or `/var/log/apache2/error_log` (System Apache).
+- Ensure the `php-wrapper.cgi` script has execute permissions (`chmod +x`).
+- Verify the `LD_LIBRARY_PATH` or `DYLD_LIBRARY_PATH` is correctly set if using custom libraries.
+
 ## Limitations
 
 ### Architecture Compatibility
@@ -344,6 +435,13 @@ The build includes these PHP extensions required by OpenEMR:
 - imagick
 
 **Note**: The build uses PHP 8.5 with all required extensions statically compiled.
+
+### SAPIs (Server APIs) Included
+
+The build includes multiple PHP SAPIs:
+- **CLI** - Command-line interface (for scripts and PHAR extraction)
+- **CGI** - Common Gateway Interface (for CGI-based web servers)
+- **MicroSFX** - Self-extracting archive format (for the combined binary)
 
 ## References
 

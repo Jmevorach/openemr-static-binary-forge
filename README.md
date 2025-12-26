@@ -6,6 +6,23 @@
 
 </div>
 
+## Table of Contents
+
+- [Supported Platforms](#currently-supported-platforms)
+- [What is OpenEMR?](#what-is-openemr)
+- [Features](#features)
+- [Platform Build Guides](#platform-build-guides)
+- [Project Structure](#project-structure)
+- [How It Works](#how-it-works)
+- [Performance Optimization](#performance-optimization)
+- [Troubleshooting](#troubleshooting)
+- [PHP Extensions Included](#php-extensions-included)
+- [Usage](#usage)
+- [License](#license)
+- [Contributing](#contributing)
+- [References](#references)
+- [Support](#support)
+
 ## Currently Supported Platforms
 
 This project supports building OpenEMR static binaries for four platforms:
@@ -24,10 +41,11 @@ OpenEMR is a popular open-source electronic health records (EHR) and medical pra
 ## Features
 
 - **Self-contained static binary**: Everything needed to run OpenEMR is included in a single executable
-- **Fully static**: All dependencies are statically linked into the binary
-- **No dependencies**: No need to install PHP or other software
+- **Fully static / Bundled Libs**: All dependencies are statically linked or bundled (FreeBSD)
+- **No dependencies**: No need to install PHP or other software on target systems
 - **Portable**: Copy the binary to any compatible system and run it
 - **Optimized builds**: Automatically uses all available CPU cores and RAM for faster builds
+- **Automated Web Server Runners**: Includes scripts for both PHP's built-in server and Apache HTTP Server (with CGI support)
 - **Easy to use**: Single executable with OpenEMR and PHP runtime
 
 ## Platform Build Guides
@@ -62,7 +80,8 @@ See the [FreeBSD Build Guide](freebsd/README.md) for complete instructions on bu
 - Builds native FreeBSD binaries from macOS using QEMU virtualization
 - PHP compiled from source with all required extensions
 - Bundled shared libraries for portability
-- VM runner script for testing on macOS
+- VM runner script for testing on macOS (built-in server)
+- VM Apache runner for realistic testing on macOS
 - Works on actual FreeBSD systems with bundled libs
 
 </details>
@@ -77,6 +96,13 @@ openemr-static-binary-forge/
 │   ├── build-macos.sh                # macOS build script
 │   ├── run-web-server.sh             # macOS web server launcher
 │   ├── php.ini                       # PHP configuration (customizable)
+│   ├── apache/                       # Apache HTTP Server example
+│   │   ├── httpd-openemr.conf        # Apache virtual host configuration
+│   │   ├── php-wrapper.sh            # PHP CGI wrapper script template
+│   │   ├── setup-apache-config.sh    # Automated Apache configuration script
+│   │   ├── test-cgi-setup.sh         # CGI setup verification script
+│   │   ├── benchmark.sh              # Apache performance benchmarking script
+│   │   └── README.md                 # Apache setup instructions
 │   └── README.md                     # macOS build guide
 ├── linux_amd64/                      # Linux amd64 build files
 │   ├── build-linux.sh                # Linux amd64 build script
@@ -98,12 +124,16 @@ openemr-static-binary-forge/
 │   └── README.md                     # Linux arm64 build guide
 ├── freebsd/                          # FreeBSD build files
 │   ├── build-freebsd.sh              # FreeBSD build script (uses QEMU)
-│   ├── run-freebsd-vm.sh             # Run OpenEMR in FreeBSD VM (macOS)
+│   ├── run-freebsd-vm.sh             # Run OpenEMR in FreeBSD VM (built-in server)
+│   ├── run-freebsd-apache.sh         # Run OpenEMR with Apache in FreeBSD VM
 │   ├── run-web-server.sh             # Web server for native FreeBSD
 │   ├── router.php                    # Router script for PHP built-in server
 │   ├── php.ini                       # PHP configuration (customizable)
+│   ├── apache/                       # Apache setup scripts and configs
 │   └── README.md                     # FreeBSD build guide
 └── logo/                             # Project logos
+    ├── openemr_static_binary_forge_github_banner.jpg
+    └── openemr_static_binary_forge_logo.png
 ```
 
 ## How It Works
@@ -316,11 +346,15 @@ After building, you'll have a single binary file that includes PHP and OpenEMR. 
 
 Each platform includes a web server launcher script:
 
-- **macOS**: `cd mac_os && ./run-web-server.sh [port]`
-- **Linux (amd64)**: `cd linux_amd64 && ./run-web-server.sh [port]`
-- **Linux (arm64)**: `cd linux_arm64 && ./run-web-server.sh [port]`
-- **FreeBSD (on macOS)**: `cd freebsd && ./run-freebsd-vm.sh -p [port]` (runs in QEMU VM)
-- **FreeBSD (native)**: `cd freebsd && ./run-web-server.sh [port]` (runs directly on FreeBSD)
+| Platform | Command | Notes |
+|----------|---------|-------|
+| **macOS** | `cd mac_os && ./run-web-server.sh [port]` | Uses built-in PHP server |
+| **macOS (Apache)** | `cd mac_os/apache && ./setup-apache-config.sh` | Configures local Apache |
+| **Linux (amd64)** | `cd linux_amd64 && ./run-web-server.sh [port]` | Uses Docker Compose |
+| **Linux (arm64)** | `cd linux_arm64 && ./run-web-server.sh [port]` | Uses Docker Compose |
+| **FreeBSD (VM)** | `cd freebsd && ./run-freebsd-vm.sh -p [port]` | Uses QEMU + built-in server |
+| **FreeBSD (Apache VM)** | `cd freebsd && ./run-freebsd-apache.sh -p [port]` | Uses QEMU + Apache |
+| **FreeBSD (Native)** | `cd freebsd && ./run-web-server.sh [port]` | Uses built-in PHP server |
 
 The launcher scripts handle PHAR extraction and start PHP's built-in development server. For production use, configure a proper web server according to [OpenEMR's documentation](https://github.com/openemr/openemr-devops/tree/master/docker/openemr/7.0.5).
 

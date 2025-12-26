@@ -9,7 +9,7 @@
 #   ./build-macos.sh [openemr_version]
 #
 # Example:
-#   ./build-macos.sh v7_0_3_4
+#   ./build-macos.sh v7_0_4
 #
 # Requirements:
 #   - macOS (Darwin)
@@ -27,7 +27,7 @@
 # to use different versions.
 #
 # OpenEMR Configuration:
-export OPENEMR_VERSION="${OPENEMR_VERSION:-v7_0_3_4}"
+export OPENEMR_VERSION="${OPENEMR_VERSION:-v7_0_4}"
 #
 # PHP Configuration:
 export PHP_VERSION="${PHP_VERSION:-8.5}"
@@ -419,35 +419,26 @@ fi
 
 SPC_RELEASE="spc-${SPC_OS}-${SPC_ARCH}.tar.gz"
 
-# Determine download URL based on whether a specific release tag is provided
-if [ -n "${STATIC_PHP_CLI_RELEASE_TAG}" ]; then
-    SPC_URL="https://github.com/${STATIC_PHP_CLI_REPO}/releases/download/${STATIC_PHP_CLI_RELEASE_TAG}/${SPC_RELEASE}"
-    echo "Downloading Static PHP CLI ${STATIC_PHP_CLI_RELEASE_TAG} for ${SPC_OS}-${SPC_ARCH}..."
-else
-    SPC_URL="https://github.com/${STATIC_PHP_CLI_REPO}/releases/latest/download/${SPC_RELEASE}"
-    echo "Downloading Static PHP CLI (latest release) for ${SPC_OS}-${SPC_ARCH}..."
-fi
+# Download URL for pinned Static PHP CLI version
+# Version is pinned to ${STATIC_PHP_CLI_RELEASE_TAG} (default: 2.7.9) for stability
+# Override by setting STATIC_PHP_CLI_RELEASE_TAG environment variable before running the script
+SPC_URL="https://github.com/${STATIC_PHP_CLI_REPO}/releases/download/${STATIC_PHP_CLI_RELEASE_TAG}/${SPC_RELEASE}"
+echo "Downloading Static PHP CLI ${STATIC_PHP_CLI_RELEASE_TAG} for ${SPC_OS}-${SPC_ARCH}..."
 
 if command -v curl >/dev/null 2>&1; then
     curl -L -o "${BUILD_DIR}/${SPC_RELEASE}" "${SPC_URL}" || {
-        if [ -z "${STATIC_PHP_CLI_RELEASE_TAG}" ]; then
-            echo -e "${YELLOW}Direct download failed, trying to find latest release via API...${NC}"
-            # Fallback: try to get latest release URL via API
-            LATEST_URL=$(curl -s "https://api.github.com/repos/${STATIC_PHP_CLI_REPO}/releases/latest" | grep "browser_download_url.*${SPC_RELEASE}" | cut -d '"' -f 4)
-            if [ -n "${LATEST_URL}" ]; then
-                curl -L -o "${BUILD_DIR}/${SPC_RELEASE}" "${LATEST_URL}" || {
-                    echo -e "${RED}ERROR: Failed to download Static PHP CLI${NC}"
-                    exit 1
-                }
-            else
-                echo -e "${RED}ERROR: Could not find Static PHP CLI release${NC}"
-                exit 1
-            fi
-        else
-            echo -e "${RED}ERROR: Failed to download Static PHP CLI release ${STATIC_PHP_CLI_RELEASE_TAG}${NC}"
-            echo "URL: ${SPC_URL}"
-            exit 1
-        fi
+        echo -e "${RED}ERROR: Failed to download Static PHP CLI release ${STATIC_PHP_CLI_RELEASE_TAG}${NC}"
+        echo "URL: ${SPC_URL}"
+        echo ""
+        echo "Please check:"
+        echo "  1. The release tag exists: ${STATIC_PHP_CLI_RELEASE_TAG}"
+        echo "  2. Your internet connection is working"
+        echo "  3. GitHub is accessible"
+        echo ""
+        echo "To use a different version, set STATIC_PHP_CLI_RELEASE_TAG environment variable:"
+        echo "  export STATIC_PHP_CLI_RELEASE_TAG=2.8.0"
+        echo "  ./build-macos.sh"
+        exit 1
     }
 elif command -v wget >/dev/null 2>&1; then
     wget -O "${BUILD_DIR}/${SPC_RELEASE}" "${SPC_URL}" || {
@@ -552,8 +543,10 @@ echo -e "${BLUE}[All build output will stream to terminal in real-time]${NC}"
 echo ""
 
 # Build - output streams directly to terminal
+# Note: The CGI SAPI is built for use with CGI-based web servers (e.g., Apache with mod_cgi)
 "${SPC_BIN}" build \
     --build-cli \
+    --build-cgi \
     --build-micro \
     "${PHP_EXTENSIONS}"
 
@@ -621,6 +614,30 @@ if [ -n "${PHP_CLI_BINARY}" ] && [ -f "${PHP_CLI_BINARY}" ]; then
     cp "${PHP_CLI_BINARY}" "${PHP_CLI_ROOT}"
     chmod +x "${PHP_CLI_ROOT}"
     echo -e "${GREEN}✓ PHP CLI binary also saved to project root: $(basename "${PHP_CLI_ROOT}")${NC}"
+fi
+
+# Find and copy PHP CGI binary
+PHP_CGI_BINARY=""
+if [ -f "${BUILD_DIR}/buildroot/bin/php-cgi" ]; then
+    PHP_CGI_BINARY="${BUILD_DIR}/buildroot/bin/php-cgi"
+elif [ -f "${BUILD_DIR}/static-php-cli/buildroot/bin/php-cgi" ]; then
+    PHP_CGI_BINARY="${BUILD_DIR}/static-php-cli/buildroot/bin/php-cgi"
+else
+    PHP_CGI_BINARY=$(find "${BUILD_DIR}" -name "php-cgi" -type f -path "*/buildroot/bin/php-cgi" 2>/dev/null | head -1)
+fi
+
+if [ -n "${PHP_CGI_BINARY}" ] && [ -f "${PHP_CGI_BINARY}" ]; then
+    # Copy to mac_os directory
+    PHP_CGI_COPY="${SCRIPT_DIR}/php-cgi-${OPENEMR_TAG}-macos-${ARCH}"
+    cp "${PHP_CGI_BINARY}" "${PHP_CGI_COPY}"
+    chmod +x "${PHP_CGI_COPY}"
+    echo -e "${GREEN}✓ PHP CGI binary saved: $(basename "${PHP_CGI_COPY}")${NC}"
+    
+    # Also copy to project root for easier access
+    PHP_CGI_ROOT="${PROJECT_ROOT}/php-cgi-${OPENEMR_TAG}-macos-${ARCH}"
+    cp "${PHP_CGI_BINARY}" "${PHP_CGI_ROOT}"
+    chmod +x "${PHP_CGI_ROOT}"
+    echo -e "${GREEN}✓ PHP CGI binary also saved to project root: $(basename "${PHP_CGI_ROOT}")${NC}"
 fi
 
 # Copy PHAR file for extraction if needed

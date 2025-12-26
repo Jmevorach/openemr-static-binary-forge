@@ -2,7 +2,21 @@
 
 Complete guide for building and running OpenEMR on FreeBSD using QEMU on macOS.
 
-This build process uses QEMU to run a FreeBSD virtual machine on macOS, allowing you to compile native FreeBSD binaries and run OpenEMR in a FreeBSD environment accessible from your Mac. **We use QEMU on macOS to provide a reproducible build environment on widely available hardware** - specifically, any MacBook running macOS can build FreeBSD binaries without needing access to physical FreeBSD hardware.
+## Table of Contents
+
+- [Pre-built Binaries](#pre-built-binaries)
+- [Overview](#overview)
+- [Quick Start](#quick-start)
+- [Requirements](#requirements)
+- [Running OpenEMR in FreeBSD VM](#running-openemr-in-freebsd-vm)
+- [Building OpenEMR for FreeBSD](#building-openemr-for-freebsd)
+- [Project Structure](#project-structure)
+- [Architecture](#architecture)
+- [Performance Tips](#performance-tips)
+- [Troubleshooting](#troubleshooting)
+- [Native FreeBSD Usage](#running-on-native-freebsd)
+- [References](#references)
+- [Support](#support)
 
 <div align="center">
 
@@ -30,9 +44,9 @@ This build process uses QEMU to run a FreeBSD virtual machine on macOS, allowing
 
 ## Pre-built Binaries
 
-If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/freebsd15-php85-openemr-v7_0_3_4-arm64-12072025).
+If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/freebsd15-php85-openemr-v7_0_4-arm64-12262025).
 
-**Latest Release**: [freebsd15-php85-openemr-v7_0_3_4-arm64-12072025](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/freebsd15-php85-openemr-v7_0_3_4-arm64-12072025)
+**Latest Release**: [freebsd15-php85-openemr-v7_0_4-arm64-12262025](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/freebsd15-php85-openemr-v7_0_4-arm64-12262025)
 
 **To use a pre-built binary on macOS:**
 1. Download the tarball to a new `dist` directory in the `freebsd` directory
@@ -52,12 +66,14 @@ The FreeBSD workflow consists of these scripts:
 | Script | Use Case | Description |
 |--------|----------|-------------|
 | `build-freebsd.sh` | macOS | Builds OpenEMR binaries using QEMU VM |
-| `run-freebsd-vm.sh` | **macOS** | Runs OpenEMR in a FreeBSD VM (for testing/development) |
+| `run-freebsd-vm.sh` | **macOS** | Runs OpenEMR in a FreeBSD VM (built-in server) |
+| `run-freebsd-apache.sh` | **macOS** | Runs OpenEMR with Apache in a FreeBSD VM |
 | `run-web-server.sh` | **Native FreeBSD** | Runs OpenEMR directly on FreeBSD systems |
+| `apache/` | **Native FreeBSD** | Apache VirtualHost configuration and setup scripts |
 
-**If you're on macOS**, use `run-freebsd-vm.sh` - it boots a FreeBSD VM and runs OpenEMR inside it.
+**If you're on macOS**, use `run-freebsd-vm.sh` for a quick test with the built-in PHP server, or `run-freebsd-apache.sh` for a more realistic setup with Apache HTTP Server.
 
-**If you're on native FreeBSD**, copy the distribution tarball to your FreeBSD system and use `run-web-server.sh` or run the binary directly.
+**If you're on native FreeBSD**, copy the distribution tarball to your FreeBSD system and use `run-web-server.sh` (built-in server) or the `apache/` folder for a production-like setup.
 
 ### Build Artifacts
 
@@ -65,7 +81,7 @@ The build produces:
 
 | Artifact | Description                                                                 |
 |----------|-----------------------------------------------------------------------------|
-| `openemr-v7_0_3_4-freebsd-arm64.tar.gz` | Complete distribution package (see picture above for uncompressed contents) |
+| `openemr-v7_0_4-freebsd-arm64.tar.gz` | Complete distribution package (see picture above for uncompressed contents) |
 
 ## Quick Start
 
@@ -86,7 +102,7 @@ Then open http://localhost:8080 in your browser.
 cd freebsd
 
 # Build the binaries
-./build-freebsd.sh v7_0_3_4
+./build-freebsd.sh v7_0_4
 
 # Run OpenEMR in FreeBSD VM
 ./run-freebsd-vm.sh -p 8080
@@ -96,6 +112,7 @@ cd freebsd
 
 ### System Requirements
 - **macOS** (Darwin) - Apple Silicon (M1/M2/M3/M4/M5) or Intel
+- **Primary Testbed**: M5 MacBook Pro (32GB RAM, 1TB Disk)
 - **Disk Space**: At least 50GB free
 - **RAM**: Minimum 8GB (16GB+ recommended)
 - **Internet connection**
@@ -183,6 +200,31 @@ Open your browser and go to `http://localhost:8080`.
 
 Press `Ctrl+C` to stop the VM. The script automatically cleans up temporary files.
 
+## Running OpenEMR with Apache in FreeBSD VM
+
+The `run-freebsd-apache.sh` script provides a full web server environment by installing Apache inside the FreeBSD VM and configuring it to use the static PHP CGI binary. This is the most accurate way to test OpenEMR on FreeBSD from macOS.
+
+### Usage
+
+```bash
+./run-freebsd-apache.sh [options]
+```
+
+### Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-p, --port PORT` | Host port to access OpenEMR | 8080 |
+| `-v, --version VER` | FreeBSD version | 15.0 |
+| `-m, --memory MEM` | VM memory in GB | 8 |
+| `-c, --cpus CPUS` | Number of CPU cores | 4 |
+| `--debug` | Enable debug logging | false |
+
+### Key Features
+- **Automated Setup**: Installs Apache, handles library dependencies (including OpenSSL version mapping), and sets up the CGI wrapper automatically.
+- **Correct Permissions**: Automatically configures `www:www` ownership and `777/666` permissions for the OpenEMR installer.
+- **Production-Like**: Mimics a real-world FreeBSD Apache deployment.
+
 ## Building OpenEMR for FreeBSD
 
 The `build-freebsd.sh` script compiles OpenEMR and PHP from source inside a FreeBSD VM.
@@ -197,7 +239,7 @@ The `build-freebsd.sh` script compiles OpenEMR and PHP from source inside a Free
 
 | Argument | Description | Default |
 |----------|-------------|---------|
-| `openemr_version` | OpenEMR tag to build | v7_0_3_4 |
+| `openemr_version` | OpenEMR tag to build | v7_0_4 |
 | `freebsd_version` | FreeBSD version | 15.0 |
 | `php_version` | PHP version to build | 8.5 |
 
@@ -208,10 +250,10 @@ The `build-freebsd.sh` script compiles OpenEMR and PHP from source inside a Free
 ./build-freebsd.sh
 
 # Specific OpenEMR version
-./build-freebsd.sh v7_0_3_4
+./build-freebsd.sh v7_0_4
 
 # Specific FreeBSD and PHP versions
-./build-freebsd.sh v7_0_3_4 14.2 8.4
+./build-freebsd.sh v7_0_4 15.0 8.5
 ```
 
 ### Build Process
@@ -240,12 +282,44 @@ The static PHP binary includes all extensions required by OpenEMR:
 
 ```
 freebsd/
-├── build-freebsd.sh       # Main build script
-├── run-freebsd-vm.sh      # VM runner for macOS users
-├── run-web-server.sh      # Web server for native FreeBSD
-├── php.ini                # PHP configuration
-└── README.md              # This file
+├── apache/                    # Apache setup scripts and configuration
+│   ├── httpd-openemr.conf     # VirtualHost template
+│   ├── setup-apache-config.sh # Automated setup script
+│   └── ...
+├── build-freebsd.sh           # Main build script
+├── run-freebsd-vm.sh          # VM runner for macOS users
+├── run-web-server.sh          # Web server for native FreeBSD
+├── php.ini                    # PHP configuration
+└── README.md                  # This file
 ```
+
+## Running on Apache (FreeBSD)
+
+For a more robust setup on native FreeBSD, you can use the included Apache configuration. This uses the static `php-cgi` binary and a wrapper script.
+
+1. **Prerequisites**: Install Apache
+   ```bash
+   pkg install apache24
+   ```
+
+2. **Extract OpenEMR**:
+   ```bash
+   cd freebsd/apache
+   ./extract-openemr.sh
+   ```
+
+3. **Configure Apache**:
+   ```bash
+   sudo ./setup-apache-config.sh
+   ```
+
+4. **Start Apache**:
+   ```bash
+   sudo sysrc apache24_enable=YES
+   sudo service apache24 start
+   ```
+
+See [freebsd/apache/README.md](apache/README.md) for more detailed instructions.
 
 ## Architecture
 
@@ -349,9 +423,21 @@ Try downloading a fresh image:
 
 ### Can't Access OpenEMR
 
-1. Wait for "Server is ready!" message
-2. Check the port in the output
-3. Try `http://127.0.0.1:<port>` instead of `localhost`
+1. Wait for "Server is ready!" or "SUCCESS: OpenEMR is now running" message.
+2. Check the port in the output (default is 8080).
+3. Try `http://127.0.0.1:<port>` instead of `localhost`.
+
+### Package Management (pkg) Errors
+
+If you see `database disk image is malformed` or sqlite errors during the build or run scripts:
+- The script automatically attempts to fix this by running `rm -rf /var/db/pkg/*.sqlite` and bootstrapping `pkg` again.
+- If it persists, try running the script with the `--fresh` (for `run-freebsd-vm.sh`) or by deleting the cached VM image.
+
+### Shared Library Conflicts (OpenSSL)
+
+FreeBSD 15.0 and older binaries might have conflicts between `openssl` (3.x) and `openssl111` (1.1.1).
+- The `run-freebsd-apache.sh` script handles this by attempting to install both and setting `LD_LIBRARY_PATH` to `/verify/lib:/usr/local/lib`.
+- If a binary fails with `Shared object "libssl.so.11" not found`, ensure `openssl111` is installed inside the VM.
 
 ### Build Artifacts Not Found
 
@@ -377,7 +463,7 @@ pkg install -y git curl wget gmake autoconf automake libtool \
     webp curl openldap26-client mysql84-client node22 npm-node22
 
 # Clone OpenEMR and PHP source
-git clone --depth 1 --branch v7_0_3_4 https://github.com/openemr/openemr.git
+git clone --depth 1 --branch v7_0_4 https://github.com/openemr/openemr.git
 git clone --depth 1 --branch php-8.5 https://github.com/php/php-src.git
 
 # Configure and build PHP with required extensions
@@ -418,11 +504,11 @@ If you're running **on an actual FreeBSD system** (not via QEMU on macOS), use t
 
 ```bash
 # Transfer the distribution tarball to your FreeBSD system
-scp dist/openemr-v7_0_3_4-freebsd-arm64.tar.gz user@freebsd-server:/home/user/
+scp dist/openemr-v7_0_4-freebsd-arm64.tar.gz user@freebsd-server:/home/user/
 
 # On the FreeBSD system:
-tar -xzf openemr-v7_0_3_4-freebsd-arm64.tar.gz
-cd openemr-v7_0_3_4-freebsd-arm64
+tar -xzf openemr-v7_0_4-freebsd-arm64.tar.gz
+cd openemr-v7_0_4-freebsd-arm64
 
 # Option 1: Use the included run script
 ./run-web-server.sh 8080

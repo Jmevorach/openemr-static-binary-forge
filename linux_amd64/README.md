@@ -2,6 +2,21 @@
 
 Complete guide for building OpenEMR static binaries for Linux amd64 using Docker and Static PHP CLI (SPC).
 
+## Table of Contents
+
+- [Pre-built Binaries](#pre-built-binaries)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [Run OpenEMR](#3-run-openemr)
+  - [Using the Binary](#using-the-binary)
+- [PHP Configuration (php.ini)](#php-configuration-phpini)
+- [Project Structure](#project-structure)
+- [How It Works](#how-it-works)
+- [Troubleshooting](#troubleshooting)
+- [PHP Extensions Included](#php-extensions-included)
+- [References](#references)
+- [Support](#support)
+
 <div align="center">
 
 <img src="../images/linuxamd64.gif" alt="Animated GIF of the Linux (amd64) Build Process (5x speedup)" width="500">
