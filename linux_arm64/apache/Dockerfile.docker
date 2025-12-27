@@ -1,0 +1,66 @@
+# Dockerfile for OpenEMR with Apache CGI (Linux arm64)
+FROM ubuntu:24.04
+
+# Avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Apache and utilities
+RUN apt-get update && apt-get install -y \
+    apache2 \
+    curl \
+    ca-certificates \
+    sudo \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create directory structure
+RUN mkdir -p /app/apache
+
+# Set working directory
+WORKDIR /app
+
+# Copy the built binaries and PHAR from the parent directory
+# We assume the user has already run ./build-linux.sh
+COPY php-cli-*-linux-arm64 /app/php-cli-linux-arm64
+COPY php-cgi-*-linux-arm64 /app/php-cgi-linux-arm64
+COPY openemr-*.phar /app/openemr.phar
+
+# Copy the apache materials
+COPY apache/*.sh /app/apache/
+COPY apache/httpd-openemr.conf /app/apache/
+COPY apache/php-wrapper.sh /app/apache/
+
+# Make scripts executable
+RUN chmod +x /app/apache/*.sh /app/php-cli-linux-arm64 /app/php-cgi-linux-arm64
+
+# Create the entrypoint script
+RUN printf '#!/bin/bash\n\
+set -e\n\
+\n\
+echo "Starting OpenEMR Apache CGI Setup..."\n\
+\n\
+# 1. Extract OpenEMR\n\
+cd /app/apache\n\
+AUTO_CONFIRM=true ./extract-openemr.sh\n\
+\n\
+# 2. Run Setup Script (modifies Apache config)\n\
+./setup-apache-config.sh\n\
+\n\
+# 3. Adjust configuration for Docker\n\
+# Redirect logs to stdout/stderr\n\
+sed -i "s|ErrorLog .*|ErrorLog /dev/stderr|" /etc/apache2/sites-available/openemr.conf\n\
+sed -i "s|CustomLog .*|CustomLog /dev/stdout common|" /etc/apache2/sites-available/openemr.conf\n\
+\n\
+# Change port to 8080 to avoid needing root for the process if desired\n\
+sed -i "s/Listen 80/Listen 8080/" /etc/apache2/ports.conf\n\
+sed -i "s/<VirtualHost \\*:80>/<VirtualHost *:8080>/" /etc/apache2/sites-available/openemr.conf\n\
+\n\
+echo "Starting Apache in foreground..."\n\
+exec apache2ctl -D FOREGROUND\n' > /usr/local/bin/entrypoint.sh
+
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Expose port 8080
+EXPOSE 8080
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+

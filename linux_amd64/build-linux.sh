@@ -14,8 +14,8 @@
 #                 Example: PHP_VERSION=8.4 ./build-linux.sh
 #
 # Example:
-#   ./build-linux.sh v7_0_3_4
-#   PHP_VERSION=8.4 ./build-linux.sh v7_0_3_4
+#   ./build-linux.sh v7_0_4
+#   PHP_VERSION=8.4 ./build-linux.sh v7_0_4
 #
 # Requirements:
 #   - Docker installed and running
@@ -32,7 +32,7 @@
 # to use different versions.
 #
 # OpenEMR Configuration:
-export OPENEMR_VERSION="${OPENEMR_VERSION:-v7_0_3_4}"
+export OPENEMR_VERSION="${OPENEMR_VERSION:-v7_0_4}"
 #
 # Docker Base Image:
 export DOCKER_BASE_IMAGE="${DOCKER_BASE_IMAGE:-ubuntu:24.04}"
@@ -140,7 +140,8 @@ ARG PHP_VERSION_FULL
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y \\
+RUN apt-get update --allow-insecure-repositories && apt-get install -y \\
+    --allow-unauthenticated \\
     build-essential \\
     git \\
     curl \\
@@ -241,7 +242,7 @@ cat > "${BUILD_SCRIPT}" << 'BUILD_SCRIPT_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
-OPENEMR_TAG="${1:-v7_0_3_4}"
+OPENEMR_TAG="${1:-v7_0_4}"
 PHP_VERSION="${2:-8.5}"
 STATIC_PHP_CLI_REPO="${3:-https://github.com/crazywhalecc/static-php-cli.git}"
 STATIC_PHP_CLI_BRANCH="${4:-main}"
@@ -589,9 +590,12 @@ export NPROC="${PARALLEL_JOBS}"
 # Run build from /tmp to avoid volume mount issues
 # Note: PHP version is set during download step, not build step
 cd /tmp
+# Add --debug flag for more verbose output to help diagnose issues
 "${SPC_BIN}" build \
     --build-cli \
+    --build-cgi \
     --build-micro \
+    --debug \
     "${PHP_EXTENSIONS}"
 
 echo "✓ Static PHP binaries built"
@@ -624,13 +628,20 @@ else
     exit 1
 fi
 
-# Copy PHP CLI and PHAR
+# Copy PHP CLI, PHP CGI and PHAR
 # SPC build creates buildroot in current directory, search both /tmp and /build
 PHP_CLI_BINARY=$(find /tmp /build -name "php" -type f -path "*/buildroot/bin/php" 2>/dev/null | head -1)
 if [ -n "${PHP_CLI_BINARY}" ] && [ -f "${PHP_CLI_BINARY}" ]; then
     cp "${PHP_CLI_BINARY}" "/output/php-cli-${OPENEMR_TAG}-linux-${TARGET_ARCH}"
     chmod +x "/output/php-cli-${OPENEMR_TAG}-linux-${TARGET_ARCH}"
     echo "✓ PHP CLI binary saved"
+fi
+
+PHP_CGI_BINARY=$(find /tmp /build -name "php-cgi" -type f -path "*/buildroot/bin/php-cgi" 2>/dev/null | head -1)
+if [ -n "${PHP_CGI_BINARY}" ] && [ -f "${PHP_CGI_BINARY}" ]; then
+    cp "${PHP_CGI_BINARY}" "/output/php-cgi-${OPENEMR_TAG}-linux-${TARGET_ARCH}"
+    chmod +x "/output/php-cgi-${OPENEMR_TAG}-linux-${TARGET_ARCH}"
+    echo "✓ PHP CGI binary saved"
 fi
 
 if [ -f "${PHAR_FILE}" ]; then
@@ -675,6 +686,8 @@ fi
 
 # Copy binary and PHAR to project root for easier access (like macOS build)
 FINAL_BINARY="${SCRIPT_DIR}/openemr-${OPENEMR_TAG}-linux-${TARGET_ARCH}"
+PHP_CLI_ROOT_BINARY="${SCRIPT_DIR}/php-cli-${OPENEMR_TAG}-linux-${TARGET_ARCH}"
+PHP_CGI_ROOT_BINARY="${SCRIPT_DIR}/php-cgi-${OPENEMR_TAG}-linux-${TARGET_ARCH}"
 PHAR_FILE="${SCRIPT_DIR}/openemr-${OPENEMR_TAG}.phar"
 
 if [ -f "${FINAL_BINARY}" ]; then
@@ -683,6 +696,20 @@ if [ -f "${FINAL_BINARY}" ]; then
     chmod +x "${BINARY_ROOT}"
     BINARY_SIZE=$(du -h "${BINARY_ROOT}" | cut -f1)
     echo -e "${GREEN}✓ Binary also saved to project root: $(basename "${BINARY_ROOT}") (${BINARY_SIZE})${NC}"
+fi
+
+if [ -f "${PHP_CLI_ROOT_BINARY}" ]; then
+    PHP_CLI_ROOT="${PROJECT_ROOT}/php-cli-${OPENEMR_TAG}-linux-${TARGET_ARCH}"
+    cp "${PHP_CLI_ROOT_BINARY}" "${PHP_CLI_ROOT}"
+    chmod +x "${PHP_CLI_ROOT}"
+    echo -e "${GREEN}✓ PHP CLI also saved to project root: $(basename "${PHP_CLI_ROOT}")${NC}"
+fi
+
+if [ -f "${PHP_CGI_ROOT_BINARY}" ]; then
+    PHP_CGI_ROOT="${PROJECT_ROOT}/php-cgi-${OPENEMR_TAG}-linux-${TARGET_ARCH}"
+    cp "${PHP_CGI_ROOT_BINARY}" "${PHP_CGI_ROOT}"
+    chmod +x "${PHP_CGI_ROOT}"
+    echo -e "${GREEN}✓ PHP CGI also saved to project root: $(basename "${PHP_CGI_ROOT}")${NC}"
 fi
 
 if [ -f "${PHAR_FILE}" ]; then

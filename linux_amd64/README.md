@@ -35,13 +35,13 @@ Complete guide for building OpenEMR static binaries for Linux amd64 using Docker
 
 ## Pre-built Binaries
 
-If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_amd64-php85-openemr-v7_0_3_4-amd64-12072025).
+If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_amd64-php85-openemr-v7_0_4-amd64-12262025).
 
-**Latest Release**: [linux_amd64-php85-openemr-v7_0_3_4-amd64-12072025](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_amd64-php85-openemr-v7_0_3_4-amd64-12072025)
-
+**Latest Release**: [linux_amd64-php85-openemr-v7_0_4-amd64-12262025](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_amd64-php85-openemr-v7_0_4-amd64-12262025)
 **To use a pre-built binary:**
 1. Download the release assets to the `linux_amd64` directory
-2. Run `./run-web-server.sh` in that directory
+2. Run `./run-web-server.sh` in that directory ...
+3. ... Or follow the instructions in the `apache` directory
 
 **Note**: Pre-built binaries are built on specific hardware configurations (M5 MacBook Pro with 1TB disk and 32 GB RAM) and may have different performance characteristics on your system. For the most optimized build for your hardware, consider building from source using the instructions below.
 
@@ -84,16 +84,16 @@ cd linux_amd64
 ./build-linux.sh [openemr_version]
 ```
 
-For example, to build OpenEMR version 7.0.3.4:
+For example, to build OpenEMR version 7.0.4:
 ```bash
-./build-linux.sh v7_0_3_4
+./build-linux.sh v7_0_4
 ```
 
-If no version is specified, it defaults to `v7_0_3_4`.
+If no version is specified, it defaults to `v7_0_4`.
 
 **PHP Version**: You can specify a PHP version using the `PHP_VERSION` environment variable:
 ```bash
-PHP_VERSION=8.4 ./build-linux.sh v7_0_3_4
+PHP_VERSION=8.4 ./build-linux.sh v7_0_4
 ```
 
 The default PHP version is 8.5. The build script will automatically fetch the latest patch version for the specified major.minor version.
@@ -108,9 +108,11 @@ The script will:
 
 ### 3. Run OpenEMR
 
-After a successful build, the binary will be located at:
+After a successful build, the binaries will be located at:
 ```
-linux_amd64/openemr-v7_0_3_4-linux-amd64
+linux_amd64/openemr-v7_0_4-linux-amd64
+linux_amd64/php-cli-v7_0_4-linux-amd64
+linux_amd64/php-cgi-v7_0_4-linux-amd64
 ```
 
 #### Using the Binary
@@ -137,6 +139,17 @@ This script:
 5. Extracts the OpenEMR PHAR archive inside the container (web browsers need individual files)
 6. Starts PHP's built-in development server
 7. Makes OpenEMR accessible at `http://localhost:8080`
+
+**For Production-style Web Server (Apache):**
+
+A dedicated Apache setup using the new CGI binary is also available:
+
+```bash
+cd linux_amd64/apache
+./README.md  # See instructions for Apache CGI setup
+```
+
+This setup demonstrates running OpenEMR behind Apache using the statically compiled PHP CGI binary, which is more representative of a production environment.
 
 **Note**: The launcher uses Docker Compose to run OpenEMR in a containerized environment with proper volume management and permissions. The PHP built-in server is suitable for development and demonstration. For production use, you should use a production web server (Apache, Nginx) configured according to [OpenEMR's documentation](https://github.com/openemr/openemr-devops/tree/master/docker/openemr/7.0.5).
 
