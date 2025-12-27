@@ -127,6 +127,8 @@ mac_os/php-cli-v7_0_4-macos-arm64        # PHP CLI binary (Apple Silicon)
 mac_os/php-cli-v7_0_4-macos-x86_64       # PHP CLI binary (Intel)
 mac_os/php-cgi-v7_0_4-macos-arm64        # PHP CGI binary (Apple Silicon)
 mac_os/php-cgi-v7_0_4-macos-x86_64       # PHP CGI binary (Intel)
+mac_os/php-fpm-v7_0_4-macos-arm64        # PHP FPM binary (Apple Silicon)
+mac_os/php-fpm-v7_0_4-macos-x86_64       # PHP FPM binary (Intel)
 mac_os/openemr-v7_0_4.phar               # OpenEMR PHAR archive
 ```
 
@@ -153,48 +155,57 @@ This script:
 
 **Note**: The launcher uses PHP's built-in server, which is suitable for development and demonstration. For production use, you should use a production web server (Apache, Nginx) configured according to [OpenEMR's documentation](https://github.com/openemr/openemr-devops/tree/master/docker/openemr/7.0.5).
 
-#### Using PHP CGI Binary with Apache
+#### Using PHP CGI or FPM Binary with Apache
 
-The build also creates a PHP CGI binary (`php-cgi-*-macos-*`) that can be used with CGI-enabled web servers like Apache.
+The build also creates a PHP CGI binary (`php-cgi-*-macos-*`) and a PHP FPM binary (`php-fpm-*-macos-*`) that can be used with web servers like Apache.
 
 ## Running OpenEMR with Apache
 
-The `apache/` directory contains configuration files and scripts for running OpenEMR locally with Apache HTTP Server on macOS. This setup uses the static PHP CGI binary.
+We provide two ways to run OpenEMR with Apache on macOS:
 
-### Prerequisites
+### 1. Using PHP CGI (Classic)
 
-1.  **Apache HTTP Server**: Install via Homebrew:
-    ```bash
-    brew install httpd
-    ```
-2.  **Built Binaries**: Ensure you've run `./build-macos.sh` first.
-
-### Automated Setup (Recommended)
+The `apache_cgi/` directory contains configuration for running OpenEMR using the static PHP CGI binary.
 
 1.  **Extract OpenEMR**:
     ```bash
-    cd mac_os/apache
+    cd mac_os/apache_cgi
     ./extract-openemr.sh
     ```
 2.  **Configure Apache**:
     ```bash
     sudo ./setup-apache-config.sh
     ```
-    This script automatically updates configuration paths, enables required modules, and adds the include directive to your Apache setup.
-
 3.  **Start Apache**:
     ```bash
     brew services start httpd
     ```
 
-OpenEMR will be available at `http://localhost:8080` (Homebrew default) or `http://localhost`.
+For more details, see [mac_os/apache_cgi/README.md](apache_cgi/README.md).
 
-### Key Components
-- **`httpd-openemr.conf`**: VirtualHost configuration for OpenEMR.
-- **`php-wrapper.sh`**: CGI wrapper that executes the static PHP binary.
-- **`test-cgi-setup.sh`**: Verification script to test the CGI environment.
+### 2. Using PHP-FPM (Recommended)
 
-For detailed manual instructions and benchmarking details, see [mac_os/apache/README.md](apache/README.md).
+The `apache_fpm/` directory contains configuration for running OpenEMR using the static PHP FPM binary. This is generally faster and more production-like.
+
+1.  **Extract OpenEMR**:
+    ```bash
+    cd mac_os/apache_fpm
+    ./extract-openemr.sh
+    ```
+2.  **Configure Apache**:
+    ```bash
+    sudo ./setup-apache-config.sh
+    ```
+3.  **Start PHP-FPM**:
+    ```bash
+    ./run-fpm.sh
+    ```
+4.  **Start Apache**:
+    ```bash
+    brew services start httpd
+    ```
+
+For more details, see [mac_os/apache_fpm/README.md](apache_fpm/README.md).
 
 ### PHP Configuration (php.ini)
 
@@ -228,11 +239,17 @@ mac_os/
 ├── build-macos.sh             # Main build script (PHP 8.5)
 ├── run-web-server.sh          # Web server launcher script (built-in server)
 ├── php.ini                    # PHP configuration file (customizable)
-├── apache/                    # Apache HTTP Server integration
+├── apache_cgi/                # Apache integration via CGI
 │   ├── httpd-openemr.conf     # VirtualHost template
 │   ├── php-wrapper.sh         # PHP CGI wrapper script
 │   ├── setup-apache-config.sh # Automated setup script
-│   └── README.md              # Detailed Apache instructions
+│   └── README.md              # Detailed instructions
+├── apache_fpm/                # Apache integration via FPM
+│   ├── httpd-openemr.conf     # VirtualHost template
+│   ├── php-fpm.conf           # FPM configuration
+│   ├── run-fpm.sh             # FPM launcher
+│   ├── setup-apache-config.sh # Automated setup script
+│   └── README.md              # Detailed instructions
 └── README.md                  # This file
 ```
 

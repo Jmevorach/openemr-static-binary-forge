@@ -40,7 +40,7 @@ This setup demonstrates running OpenEMR using:
 ## Project Structure
 
 ```
-mac_os/apache/
+mac_os/apache_cgi/
 ├── httpd-openemr.conf        # Apache virtual host configuration template
 ├── php-wrapper.sh            # PHP CGI wrapper script template
 ├── extract-openemr.sh        # Helper script to extract PHAR

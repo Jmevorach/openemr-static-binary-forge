@@ -69,7 +69,7 @@ if [ -d "${OPENEMR_PATH}" ]; then
     fi
 else
     echo "   ✗ OpenEMR not extracted"
-    echo "   Run: cd ${MAC_OS_DIR} && ./apache/extract-openemr.sh"
+    echo "   Run: cd ${MAC_OS_DIR} && ./apache_cgi/extract-openemr.sh"
     exit 1
 fi
 echo ""

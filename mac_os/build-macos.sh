@@ -199,8 +199,10 @@ echo "  Parallel build jobs: ${PARALLEL_JOBS}"
 echo "  Composer memory limit: ${COMPOSER_MEMORY_LIMIT}"
 echo ""
 
-# Create temporary directory for building
-TMP_DIR=$(mktemp -d)
+# Create temporary directory for building in the current directory to avoid permission issues in /var/folders
+TMP_DIR="${SCRIPT_DIR}/build-tmp"
+rm -rf "${TMP_DIR}"
+mkdir -p "${TMP_DIR}"
 BUILD_DIR="${TMP_DIR}/build"
 mkdir -p "${BUILD_DIR}"
 
@@ -239,23 +241,36 @@ echo ""
 OPENEMR_DIR="${BUILD_DIR}/openemr-source"
 PHAR_FILE="${BUILD_DIR}/openemr.phar"
 
-echo "Cloning OpenEMR ${OPENEMR_TAG}..."
-MAX_RETRIES=3
+echo "Downloading OpenEMR ${OPENEMR_TAG} source..."
+MAX_RETRIES=5
 RETRY_COUNT=0
+DOWNLOAD_SUCCESS=false
+
+# Use curl to download the source tarball instead of git clone for better reliability
 while [ ${RETRY_COUNT} -lt ${MAX_RETRIES} ]; do
-    if git clone --depth 1 --branch "${OPENEMR_TAG}" https://github.com/openemr/openemr.git openemr-source; then
-        break
+    echo "Attempt $((RETRY_COUNT + 1)) of ${MAX_RETRIES}..."
+    if curl -L "https://github.com/openemr/openemr/archive/refs/tags/${OPENEMR_TAG}.tar.gz" -o "openemr.tar.gz"; then
+        echo "Extracting OpenEMR source..."
+        mkdir -p openemr-source
+        if tar -xzf "openemr.tar.gz" -C openemr-source --strip-components=1; then
+            DOWNLOAD_SUCCESS=true
+            break
+        fi
     fi
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ ${RETRY_COUNT} -lt ${MAX_RETRIES} ]; then
-        echo -e "${YELLOW}Clone attempt ${RETRY_COUNT} failed. Retrying in 5 seconds...${NC}"
+        echo -e "${YELLOW}Download/extraction failed. Retrying in 5 seconds...${NC}"
         sleep 5
-        rm -rf openemr-source 2>/dev/null || true
-    else
-        echo -e "${RED}ERROR: Failed to clone OpenEMR after ${MAX_RETRIES} attempts${NC}"
-        exit 1
+        rm -rf openemr-source openemr.tar.gz 2>/dev/null || true
     fi
 done
+
+if [ "${DOWNLOAD_SUCCESS}" = "true" ]; then
+    echo -e "${GREEN}✓ OpenEMR source downloaded and extracted${NC}"
+else
+    echo -e "${RED}ERROR: Failed to download OpenEMR after ${MAX_RETRIES} attempts${NC}"
+    exit 1
+fi
 
 cd openemr-source
 
@@ -263,10 +278,26 @@ cd openemr-source
 echo "Preparing application for PHAR creation..."
 mkdir -p "${BUILD_DIR}/openemr-phar"
 
-# Export clean version without .git
-git archive HEAD | tar -x -C "${BUILD_DIR}/openemr-phar"
+if [ -d ".git" ]; then
+    # Export clean version without .git if it's a git repo
+    git archive HEAD | tar -x -C "${BUILD_DIR}/openemr-phar"
+else
+    # If we downloaded a tarball, it's already clean, just copy the source files
+    # We are already in the openemr-source directory
+    cp -R . "${BUILD_DIR}/openemr-phar"
+fi
 
 cd "${BUILD_DIR}/openemr-phar"
+
+# Remove the downloaded tarball if it was copied
+rm -f openemr.tar.gz 2>/dev/null || true
+
+# Verify we have content
+if [ ! -f "composer.json" ] && [ ! -f "index.php" ] && [ ! -d "interface" ]; then
+    echo -e "${RED}ERROR: Failed to prepare OpenEMR-phar directory (it is empty or missing key files)${NC}"
+    ls -la
+    exit 1
+fi
 
 # Remove unneeded files to reduce size
 echo "Removing unneeded files..."
@@ -544,9 +575,11 @@ echo ""
 
 # Build - output streams directly to terminal
 # Note: The CGI SAPI is built for use with CGI-based web servers (e.g., Apache with mod_cgi)
+# Note: The FPM SAPI is built for use with FPM-capable web servers (e.g., Apache with mod_proxy_fcgi)
 "${SPC_BIN}" build \
     --build-cli \
     --build-cgi \
+    --build-fpm \
     --build-micro \
     "${PHP_EXTENSIONS}"
 
@@ -638,6 +671,30 @@ if [ -n "${PHP_CGI_BINARY}" ] && [ -f "${PHP_CGI_BINARY}" ]; then
     cp "${PHP_CGI_BINARY}" "${PHP_CGI_ROOT}"
     chmod +x "${PHP_CGI_ROOT}"
     echo -e "${GREEN}✓ PHP CGI binary also saved to project root: $(basename "${PHP_CGI_ROOT}")${NC}"
+fi
+
+# Find and copy PHP FPM binary
+PHP_FPM_BINARY=""
+if [ -f "${BUILD_DIR}/buildroot/bin/php-fpm" ]; then
+    PHP_FPM_BINARY="${BUILD_DIR}/buildroot/bin/php-fpm"
+elif [ -f "${BUILD_DIR}/static-php-cli/buildroot/bin/php-fpm" ]; then
+    PHP_FPM_BINARY="${BUILD_DIR}/static-php-cli/buildroot/bin/php-fpm"
+else
+    PHP_FPM_BINARY=$(find "${BUILD_DIR}" -name "php-fpm" -type f -path "*/buildroot/bin/php-fpm" 2>/dev/null | head -1)
+fi
+
+if [ -n "${PHP_FPM_BINARY}" ] && [ -f "${PHP_FPM_BINARY}" ]; then
+    # Copy to mac_os directory
+    PHP_FPM_COPY="${SCRIPT_DIR}/php-fpm-${OPENEMR_TAG}-macos-${ARCH}"
+    cp "${PHP_FPM_BINARY}" "${PHP_FPM_COPY}"
+    chmod +x "${PHP_FPM_COPY}"
+    echo -e "${GREEN}✓ PHP FPM binary saved: $(basename "${PHP_FPM_COPY}")${NC}"
+    
+    # Also copy to project root for easier access
+    PHP_FPM_ROOT="${PROJECT_ROOT}/php-fpm-${OPENEMR_TAG}-macos-${ARCH}"
+    cp "${PHP_FPM_BINARY}" "${PHP_FPM_ROOT}"
+    chmod +x "${PHP_FPM_ROOT}"
+    echo -e "${GREEN}✓ PHP FPM binary also saved to project root: $(basename "${PHP_FPM_ROOT}")${NC}"
 fi
 
 # Copy PHAR file for extraction if needed
