@@ -39,9 +39,9 @@ Complete guide for building OpenEMR static binaries on macOS using Static PHP CL
 
 ## Pre-built Binaries
 
-If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/mac_os-php85-openemr-v7_0_4-arm64-12262025).
+If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/mac_os-php85-openemr-v7_0_4-arm64-12272025).
 
-**Latest Release**: [mac_os-php85-openemr-v7_0_4-arm64-12262025](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/mac_os-php85-openemr-v7_0_4-arm64-12262025)
+**Latest Release**: [mac_os-php85-openemr-v7_0_4-arm64-12272025](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/mac_os-php85-openemr-v7_0_4-arm64-12272025)
 
 To use a pre-built binary:
 1. Download the release assets to the `mac_os` directory
