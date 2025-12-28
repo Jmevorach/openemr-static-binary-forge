@@ -9,7 +9,10 @@ Complete guide for building OpenEMR static binaries on macOS using Static PHP CL
 - [Quick Start](#quick-start)
 - [Run OpenEMR](#4-run-openemr)
   - [Using the Binary](#using-the-binary)
-  - [Using PHP CGI Binary with Apache](#using-php-cgi-binary-with-apache)
+  - [Using PHP CGI or FPM Binary with Apache](#using-php-cgi-or-fpm-binary-with-apache)
+- [Running OpenEMR with Apache](#running-openemr-with-apache)
+  - [Using PHP CGI (Classic)](#1-using-php-cgi-classic)
+  - [Using PHP-FPM (Recommended)](#2-using-php-fpm-recommended)
 - [PHP Configuration (php.ini)](#php-configuration-phpini)
 - [Project Structure](#project-structure)
 - [How It Works](#how-it-works)
@@ -282,6 +285,7 @@ The build process follows these steps:
 5. **Build Static PHP Binaries**: Compiles PHP with all extensions
    - Builds PHP CLI binary with all required extensions
    - Builds PHP CGI binary for CGI-based web server integration
+   - Builds PHP FPM binary for FPM-based web server integration (Recommended)
    - Builds MicroSFX binary (self-extracting PHP binary format)
    - Uses parallel compilation for faster builds
    - All dependencies are statically linked
@@ -458,6 +462,7 @@ The build includes these PHP extensions required by OpenEMR:
 The build includes multiple PHP SAPIs:
 - **CLI** - Command-line interface (for scripts and PHAR extraction)
 - **CGI** - Common Gateway Interface (for CGI-based web servers)
+- **FPM** - FastCGI Process Manager (for high-performance web server integration)
 - **MicroSFX** - Self-extracting archive format (for the combined binary)
 
 ## References
