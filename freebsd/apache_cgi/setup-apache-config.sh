@@ -34,7 +34,7 @@ echo ""
 # Verify OpenEMR directory exists
 if [ ! -d "${OPENEMR_PATH}" ]; then
     echo "Error: OpenEMR directory not found at ${OPENEMR_PATH}"
-    echo "Please extract OpenEMR first using: cd ${FREEBSD_DIR} && ./apache/extract-openemr.sh"
+    echo "Please extract OpenEMR first using: cd ${FREEBSD_DIR} && ./apache_cgi/extract-openemr.sh"
     exit 1
 fi
 

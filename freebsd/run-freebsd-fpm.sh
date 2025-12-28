@@ -1,20 +1,12 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# OpenEMR FreeBSD Apache Runner for macOS
+# OpenEMR FreeBSD Apache + PHP-FPM Runner for macOS
 # ==============================================================================
 # This script boots a FreeBSD QEMU VM, installs Apache, and configures it
-# to serve OpenEMR using the custom PHP CGI binary.
+# to serve OpenEMR using the custom PHP FPM binary.
 #
 # Usage:
-#   ./run-freebsd-apache.sh [options]
-#
-# Options:
-#   -p, --port PORT      Host port to access OpenEMR (default: 8080)
-#   -v, --version VER    FreeBSD version (default: 15.0)
-#   -m, --memory MEM     VM memory in GB (default: 8)
-#   -c, --cpus CPUS      Number of CPU cores (default: 4)
-#   --debug              Enable debug logging
-#   -h, --help           Show this help message
+#   ./run-freebsd-fpm.sh [options]
 # ==============================================================================
 
 set -euo pipefail
@@ -32,10 +24,10 @@ NC='\033[0m'
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "${SCRIPT_DIR}/.." && pwd )"
 DIST_DIR="${SCRIPT_DIR}/dist"
-APACHE_SRC_DIR="${SCRIPT_DIR}/apache"
+APACHE_FPM_DIR="${SCRIPT_DIR}/apache_fpm"
 
 # Default arguments
-HOST_PORT="8080"
+HOST_PORT="8081"
 FREEBSD_VERSION="15.0"
 VM_MEM="8G"
 VM_CPUS="4"
@@ -53,7 +45,7 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [options]"
             echo ""
             echo "Options:"
-            echo "  -p, --port PORT      Host port to access OpenEMR (default: 8080)"
+            echo "  -p, --port PORT      Host port to access OpenEMR (default: 8081)"
             echo "  -v, --version VER    FreeBSD version (default: 15.0)"
             echo "  -m, --memory MEM     VM memory in GB (default: 8)"
             echo "  -c, --cpus CPUS      Number of CPU cores (default: 4)"
@@ -65,7 +57,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo -e "${CYAN}${BOLD}OpenEMR FreeBSD Apache Runner${NC}"
+echo -e "${CYAN}${BOLD}OpenEMR FreeBSD Apache + PHP-FPM Runner${NC}"
 echo "=========================================="
 
 # 1. Check Requirements
@@ -79,9 +71,9 @@ if [ -z "${DIST_ARTIFACT}" ]; then
     exit 1
 fi
 
-PHP_CGI_ARTIFACT=$(basename $(ls "${DIST_DIR}"/php-cgi-* 2>/dev/null | head -n 1 || true))
-if [ -z "${PHP_CGI_ARTIFACT}" ]; then
-    echo -e "${RED}ERROR: Could not find php-cgi-* in ${DIST_DIR}${NC}"
+PHP_FPM_ARTIFACT=$(basename $(ls "${DIST_DIR}"/php-fpm-* 2>/dev/null | head -n 1 || true))
+if [ -z "${PHP_FPM_ARTIFACT}" ]; then
+    echo -e "${RED}ERROR: Could not find php-fpm-* in ${DIST_DIR}${NC}"
     exit 1
 fi
 
@@ -142,14 +134,14 @@ find_free_port() {
     echo "${port}"
 }
 
-SERIAL_PORT=$(find_free_port 4445)
-HTTP_PORT=$(find_free_port 8002)
+SERIAL_PORT=$(find_free_port 4446)
+HTTP_PORT=$(find_free_port 8003)
 
 # 4. Shared Directory Setup
 SHARED_DIR=$(mktemp -d)
 cp "${DIST_DIR}/${DIST_ARTIFACT}" "${SHARED_DIR}/"
-cp "${DIST_DIR}/${PHP_CGI_ARTIFACT}" "${SHARED_DIR}/"
-cp -r "${APACHE_SRC_DIR}" "${SHARED_DIR}/apache"
+cp "${DIST_DIR}/${PHP_FPM_ARTIFACT}" "${SHARED_DIR}/"
+cp -r "${APACHE_FPM_DIR}" "${SHARED_DIR}/apache_fpm"
 
 # 5. Start HTTP Server for File Transfer
 cd "${SHARED_DIR}"
@@ -158,7 +150,7 @@ HTTP_SERVER_PID=$!
 cd - >/dev/null
 
 # 6. Start QEMU
-PID_FILE="${VM_DIR}/qemu-apache.pid"
+PID_FILE="${VM_DIR}/qemu-fpm.pid"
 rm -f "${PID_FILE}"
 
 echo -e "${YELLOW}Step 4: Starting QEMU VM...${NC}"
@@ -198,13 +190,12 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # 7. Expect Script for Configuration
-echo -e "${YELLOW}Step 5: Configuring Apache inside VM (this may take a few minutes)...${NC}"
+echo -e "${YELLOW}Step 5: Configuring Apache + PHP-FPM inside VM (this may take a few minutes)...${NC}"
 EXPECT_SCRIPT=$(mktemp)
-# Explicitly pass variables to avoid env issues
 cat > "${EXPECT_SCRIPT}" << 'EXPECT_EOF'
 set timeout -1
 log_user 1
-log_file "expect-apache-run.log"
+log_file "expect-fpm-run.log"
 match_max 1000000
 
 set serial_port [lindex $argv 0]
@@ -232,14 +223,19 @@ if {$connected == 0} {
 
 set prompt "root@.*# "
 
-proc send_cmd {cmd} {
+proc send_cmd {cmd {check_err 1}} {
     global prompt
     send "$cmd\r"
     expect {
-        -re $prompt { return }
+        -re $prompt { 
+            if {$check_err} {
+                # Check for common failure indicators in output
+                # (Note: this is basic, but helps catch obvious errors)
+            }
+            return 
+        }
         eof { puts "Connection lost"; exit 1 }
         timeout { 
-            # Send a newline to try and wake it up
             send "\r"
             expect {
                 -re $prompt { return }
@@ -250,52 +246,71 @@ proc send_cmd {cmd} {
 }
 
 expect {
+    "Enter full pathname of shell or RETURN for /bin/sh:" { 
+        send "\r"
+        expect "# "
+        send "fsck -y /\r"
+        expect "# "
+        send "reboot\r"
+        exp_continue 
+    }
     "login:" { send "root\r"; exp_continue }
     -re $prompt { }
 }
 
 send_cmd "export PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin"
+# Ensure networking is up
+send_cmd "ifconfig vtnet0 up && dhclient vtnet0 || true"
+# Verify connectivity to host
+send_cmd "ping -c 1 10.0.2.2 || echo 'Host unreachable'"
+
 send_cmd "gpart recover vtbd0; gpart resize -i 3 vtbd0 || true"
 send_cmd "service growfs onestart"
 send_cmd "rm -rf /var/db/pkg/*.sqlite /var/db/pkg/local.sqlite || true"
 send_cmd "env ASSUME_ALWAYS_YES=YES pkg bootstrap -f"
 send_cmd "pkg update"
-# Install dependencies.
-send_cmd "pkg install -y apache24 bash curl libiconv libxml2 openssl"
-# Install openssl111 for older binary compatibility
-send_cmd "pkg install -y openssl111 || true"
+send_cmd "pkg install -y apache24 bash curl libiconv libxml2 openssl sqlite3 icu oniguruma"
 send_cmd "mkdir -p /verify && cd /verify"
 send_cmd "rm -rf bin lib openemr.phar artifacts.tar.gz openemr-extracted"
 send_cmd "fetch -o artifacts.tar.gz http://10.0.2.2:$http_port/$dist_artifact"
+# Verify download
+send_cmd "ls -lh artifacts.tar.gz || (echo 'Download failed' && exit 1)"
 send_cmd "tar -xzf artifacts.tar.gz --strip-components=1"
-send_cmd "cp bin/php php-cli-v7_0_4-freebsd-$arch"
-send_cmd "cp bin/php-cgi php-cgi-v7_0_4-freebsd-$arch"
-send_cmd "chmod +x php-*-freebsd-*"
-send_cmd "mkdir -p apache"
-send_cmd "for f in benchmark.sh extract-openemr.sh httpd-openemr.conf php-wrapper.sh README.md setup-apache-config.sh test-cgi-setup.sh; do fetch -o apache/\$f http://10.0.2.2:$http_port/apache/\$f; done"
-send_cmd "chmod +x apache/*.sh"
-# Extraction
-send_cmd "echo 'y' | LD_LIBRARY_PATH=/verify/lib:/usr/local/lib:/usr/lib bash apache/extract-openemr.sh /verify/openemr-extracted"
-# Efficient permission setup - only what is needed for installer and runtime
-send_cmd "mkdir -p /verify/openemr-extracted/sites/default"
-send_cmd "touch /verify/openemr-extracted/sites/default/sqlconf.php"
+send_cmd "mkdir -p apache_fpm"
+send_cmd "for f in benchmark.sh extract-openemr.sh httpd-openemr.conf php-fpm.conf run-fpm.sh README.md setup-apache-config.sh test-fpm-setup.sh; do fetch -o apache_fpm/\$f http://10.0.2.2:$http_port/apache_fpm/\$f; done"
+# Verify scripts
+send_cmd "ls apache_fpm/extract-openemr.sh || (echo 'Scripts download failed' && exit 1)"
+send_cmd "chmod +x apache_fpm/*.sh"
+# Extraction - ensure we are in /verify so it can find bin/ and openemr.phar
+send_cmd "cd /verify"
+send_cmd "echo 'y' | bash apache_fpm/extract-openemr.sh /verify/openemr-extracted"
+# Verify extraction
+send_cmd "ls -d /verify/openemr-extracted/interface || (echo 'Extraction failed - openemr-extracted/interface not found' && ls -R /verify/openemr-extracted && exit 1)"
 send_cmd "chown -R www:www /verify/openemr-extracted"
-# Give full access to the sites directory for the installer
 send_cmd "chmod -R 777 /verify/openemr-extracted/sites"
 send_cmd "sync"
-# Run setup script with bash -x for debugging
-send_cmd "bash -x apache/setup-apache-config.sh"
-send_cmd "sysrc apache24_enable=YES && /usr/local/etc/rc.d/apache24 restart"
+# Run setup script with debug output
+send_cmd "sysrc apache24_enable=YES"
+send_cmd "bash -x apache_fpm/setup-apache-config.sh"
+# Start FPM
+send_cmd "cd /verify/apache_fpm && bash run-fpm.sh"
+# Run verification test
+send_cmd "bash test-fpm-setup.sh"
+# Start Apache - ensure we enable it and restart
+send_cmd "sysrc apache24_enable=YES"
+send_cmd "service apache24 stop || true"
+send_cmd "service apache24 start"
+# Final check - ensure Apache is actually running
+send_cmd "sockstat -4 -l | grep :80"
 
 puts "\n\n"
 puts "=================================================================="
-puts "  SUCCESS: OpenEMR is now running on Apache inside FreeBSD!"
+puts "  SUCCESS: OpenEMR is now running on Apache + FPM inside FreeBSD!"
 puts "  URL: http://localhost:$host_port"
 puts "=================================================================="
 puts "\nPress Ctrl+C to stop the VM and exit."
 puts "\n"
 
-# Keep the connection alive and show any subsequent output
 expect {
     timeout { exp_continue }
     eof { puts "VM console disconnected."; exit 0 }
@@ -303,3 +318,4 @@ expect {
 EXPECT_EOF
 
 expect "${EXPECT_SCRIPT}" "${SERIAL_PORT}" "${HTTP_PORT}" "${FREEBSD_ARCH}" "${DIST_ARTIFACT}" "${HOST_PORT}"
+

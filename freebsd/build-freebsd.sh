@@ -100,7 +100,10 @@ TOTAL_RAM_GB=$(($(sysctl -n hw.memsize 2>/dev/null || echo "8589934592") / 1024 
 VM_RAM_GB=$((TOTAL_RAM_GB / 2)); [ "${VM_RAM_GB}" -lt 4 ] && VM_RAM_GB=4; [ "${VM_RAM_GB}" -gt 16 ] && VM_RAM_GB=16
 
 # Temp dirs
-TMP_DIR=$(mktemp -d); BUILD_DIR="${TMP_DIR}/build"; VM_DIR="${TMP_DIR}/vm"; SHARED_DIR="${TMP_DIR}/shared"
+TMP_DIR="${SCRIPT_DIR}/build-tmp"
+rm -rf "${TMP_DIR}"
+mkdir -p "${TMP_DIR}"
+BUILD_DIR="${TMP_DIR}/build"; VM_DIR="${TMP_DIR}/vm"; SHARED_DIR="${TMP_DIR}/shared"
 mkdir -p "${BUILD_DIR}" "${VM_DIR}" "${SHARED_DIR}"
 
 # Cleanup
@@ -131,8 +134,35 @@ FREEBSD_IMAGE="${VM_DIR}/${FREEBSD_IMAGE_NAME}"
 
 if [ ! -f "${FREEBSD_IMAGE}" ]; then
     echo "Downloading FreeBSD ${FREEBSD_VERSION} image..."
-    curl -L -f --progress-bar -o "${FREEBSD_IMAGE}.xz" "${FREEBSD_IMAGE_URL}"
-    xz -d "${FREEBSD_IMAGE}.xz"
+    MAX_RETRIES=5
+    RETRY_COUNT=0
+    DOWNLOAD_SUCCESS=false
+    
+    while [ ${RETRY_COUNT} -lt ${MAX_RETRIES} ]; do
+        echo "Attempt $((RETRY_COUNT + 1)) of ${MAX_RETRIES}..."
+        # Use simple curl, CA bundle should be auto-detected or set by CURL_CA_BUNDLE env var
+        if curl -L -f -o "${FREEBSD_IMAGE}.xz" "${FREEBSD_IMAGE_URL}"; then
+            if [ -f "${FREEBSD_IMAGE}.xz" ]; then
+                echo "Extracting image..."
+                if xz -d "${FREEBSD_IMAGE}.xz"; then
+                    DOWNLOAD_SUCCESS=true
+                    break
+                fi
+            fi
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        if [ ${RETRY_COUNT} -lt ${MAX_RETRIES} ]; then
+            echo -e "${YELLOW}Download/extraction failed. Retrying in 5 seconds...${NC}"
+            sleep 5
+            rm -f "${FREEBSD_IMAGE}.xz" 2>/dev/null || true
+        fi
+    done
+
+    if [ "${DOWNLOAD_SUCCESS}" = "false" ]; then
+        echo -e "${RED}ERROR: Failed to download/extract FreeBSD image after ${MAX_RETRIES} attempts${NC}"
+        exit 1
+    fi
+
     qemu-img resize "${FREEBSD_IMAGE}" 30G
     echo "Image resized."
 else
@@ -278,6 +308,7 @@ export LIBS="-lm -lpthread -lstdc++ -lintl -liconv -lz"
     --prefix="${PHP_INSTALL_DIR}" \
     --enable-cli \
     --enable-cgi \
+    --enable-fpm \
     --enable-bcmath \
     --enable-calendar \
     --enable-exif \
@@ -314,12 +345,21 @@ mkdir -p "${DIST_DIR}/lib" "${DIST_DIR}/bin"
 
 cp "${PHP_INSTALL_DIR}/bin/php" "${DIST_DIR}/bin/php"
 cp "${PHP_INSTALL_DIR}/bin/php-cgi" "${DIST_DIR}/bin/php-cgi"
+cp "${PHP_INSTALL_DIR}/sbin/php-fpm" "${DIST_DIR}/bin/php-fpm"
 cp /build/openemr.phar "${DIST_DIR}/openemr.phar"
 
-# Bundle libraries
-ldd "${DIST_DIR}/bin/php" | grep "=>" | awk '{print $3}' | while read lib; do
-    if [[ "$lib" == /usr/local/* ]] && [ -f "$lib" ]; then
-        cp "$lib" "${DIST_DIR}/lib/"
+# Bundle libraries for all binaries
+for bin in "${DIST_DIR}/bin/php" "${DIST_DIR}/bin/php-cgi" "${DIST_DIR}/bin/php-fpm"; do
+    if [ -f "$bin" ]; then
+        ldd "$bin" | grep "=>" | awk '{print $3}' | while read lib; do
+            if [[ "$lib" == /usr/local/* ]] && [ -f "$lib" ]; then
+                # Avoid duplicates
+                lib_name=$(basename "$lib")
+                if [ ! -f "${DIST_DIR}/lib/${lib_name}" ]; then
+                    cp "$lib" "${DIST_DIR}/lib/"
+                fi
+            fi
+        done
     fi
 done
 
@@ -337,6 +377,7 @@ tar -czf "/build/artifacts/${DIST_NAME}.tar.gz" "${DIST_NAME}"
 cp /build/openemr.phar "/build/artifacts/openemr-${OPENEMR_TAG}.phar"
 cp "${DIST_DIR}/bin/php" "/build/artifacts/php-cli-${OPENEMR_TAG}-freebsd-${ARCH}"
 cp "${DIST_DIR}/bin/php-cgi" "/build/artifacts/php-cgi-${OPENEMR_TAG}-freebsd-${ARCH}"
+cp "${DIST_DIR}/bin/php-fpm" "/build/artifacts/php-fpm-${OPENEMR_TAG}-freebsd-${ARCH}"
 
 cd /build/artifacts
 echo "BUILD FINISHED SUCCESSFULLY"
@@ -454,10 +495,15 @@ sleep 5 # Give the VM server a moment to settle
 DIST_DIR="${SCRIPT_DIR}/dist"
 mkdir -p "${DIST_DIR}"
 for file in "openemr-${OPENEMR_TAG}-freebsd-${FREEBSD_ARCH}.tar.gz" "openemr-${OPENEMR_TAG}.phar" \
-            "php-cli-${OPENEMR_TAG}-freebsd-${FREEBSD_ARCH}" "php-cgi-${OPENEMR_TAG}-freebsd-${FREEBSD_ARCH}"; do
+            "php-cli-${OPENEMR_TAG}-freebsd-${FREEBSD_ARCH}" "php-cgi-${OPENEMR_TAG}-freebsd-${FREEBSD_ARCH}" \
+            "php-fpm-${OPENEMR_TAG}-freebsd-${FREEBSD_ARCH}"; do
     echo "Downloading ${file}..."
     curl -sf "http://127.0.0.1:${VM_HTTP_PORT}/${file}" -o "${DIST_DIR}/${file}" || echo "Failed to download: ${file}"
-    [ -f "${DIST_DIR}/${file}" ] && chmod +x "${DIST_DIR}/${file}"
+    if [ -f "${DIST_DIR}/${file}" ]; then
+        chmod +x "${DIST_DIR}/${file}"
+        cp "${DIST_DIR}/${file}" "${PROJECT_ROOT}/"
+        echo "✓ Copied ${file} to project root."
+    fi
 done
 
-echo -e "${GREEN}Step 5/5: Build complete! Artifacts in freebsd/dist/${NC}"
+echo -e "${GREEN}Step 5/5: Build complete! Artifacts in freebsd/dist/ and project root.${NC}"

@@ -32,6 +32,8 @@ This project supports building OpenEMR static binaries for four platforms:
 - **Linux (arm64)** - See [Linux arm64 Build Guide](linux_arm64/README.md)
 - **FreeBSD** (arm64/aarch64) - See [FreeBSD Build Guide](freebsd/README.md)
 
+**Note**: All platforms have been verified with OpenEMR v7.0.4 and PHP 8.5.
+
 Each platform has its own build directory with platform-specific build scripts and documentation.
 
 ## What is OpenEMR?
@@ -353,7 +355,8 @@ Each platform includes a web server launcher script:
 | **Linux (amd64)** | `cd linux_amd64 && ./run-web-server.sh [port]` | Uses Docker Compose |
 | **Linux (arm64)** | `cd linux_arm64 && ./run-web-server.sh [port]` | Uses Docker Compose |
 | **FreeBSD (VM)** | `cd freebsd && ./run-freebsd-vm.sh -p [port]` | Uses QEMU + built-in server |
-| **FreeBSD (Apache VM)** | `cd freebsd && ./run-freebsd-apache.sh -p [port]` | Uses QEMU + Apache |
+| **FreeBSD (Apache VM)** | `cd freebsd && ./run-freebsd-apache.sh -p [port]` | Uses QEMU + Apache (CGI) |
+| **FreeBSD (FPM VM)** | `cd freebsd && ./run-freebsd-fpm.sh -p [port]` | Uses QEMU + Apache (FPM) |
 | **FreeBSD (Native)** | `cd freebsd && ./run-web-server.sh [port]` | Uses built-in PHP server |
 
 The launcher scripts handle PHAR extraction and start PHP's built-in development server. For production use, configure a proper web server according to [OpenEMR's documentation](https://github.com/openemr/openemr-devops/tree/master/docker/openemr/7.0.5).

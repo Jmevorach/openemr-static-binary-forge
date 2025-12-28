@@ -36,7 +36,7 @@ This setup demonstrates running OpenEMR using:
 ## Project Structure
 
 ```
-freebsd/apache/
+freebsd/apache_cgi/
 ├── httpd-openemr.conf        # Apache virtual host configuration template
 ├── php-wrapper.sh            # PHP CGI wrapper script template
 ├── extract-openemr.sh        # Helper script to extract PHAR
@@ -70,7 +70,7 @@ freebsd/apache/
 First, extract the OpenEMR PHAR archive:
 
 ```bash
-cd freebsd/apache
+cd freebsd/apache_cgi
 ./extract-openemr.sh
 ```
 
@@ -103,7 +103,7 @@ cd freebsd
 Run the setup script to automatically configure Apache:
 
 ```bash
-cd freebsd/apache
+cd freebsd/apache_cgi
 sudo ./setup-apache-config.sh
 ```
 
@@ -128,7 +128,7 @@ This script will:
 
 2. **Copy Apache configuration**:
    ```bash
-   cd freebsd/apache
+   cd freebsd/apache_cgi
    sudo cp httpd-openemr.conf /usr/local/etc/apache24/Includes/openemr.conf
    ```
 
@@ -146,9 +146,10 @@ This script will:
 
 ### 4. Test Apache Configuration
 
-Before starting Apache, test the configuration syntax:
+Before starting Apache, test the configuration syntax and components:
 
 ```bash
+./test-cgi-setup.sh
 sudo apachectl configtest
 ```
 
@@ -177,7 +178,7 @@ OpenEMR should now be accessible at:
 You can test the performance of the Apache CGI setup using the included benchmark script:
 
 ```bash
-cd freebsd/apache
+cd freebsd/apache_cgi
 ./benchmark.sh [url] [concurrency] [requests]
 ```
 

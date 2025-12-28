@@ -1,11 +1,18 @@
 # Build artifacts
 *.phar
 *.sfx
-openemr-*
+openemr-v*
+php-cli-*
+php-cgi-*
+php-fpm-*
 build-logs-*/
 
 # Temporary build directories
 /tmp/
+build-tmp/
+openemr-extracted/
+openemr-fpm-extracted/
+openemr-source/
 
 # macOS
 .DS_Store
@@ -28,6 +35,10 @@ Thumbs.db
 
 # Build binaries
 mac_os/openemr-*-macos-*
+mac_os/php-cli-*-macos-*
+mac_os/php-cgi-*-macos-*
+mac_os/php-fpm-*-macos-*
+mac_os/openemr-*.phar
 
 # FreeBSD VM images (large files, should not be committed)
 freebsd/vm-images/
@@ -38,3 +49,8 @@ buildroot/
 static-php-cli/
 downloads/
 pkgroot/
+spc
+/mac_os/build-tmp/
+/linux_amd64/build-tmp/
+/linux_arm64/build-tmp/
+/freebsd/build-tmp/

@@ -67,9 +67,13 @@ The FreeBSD workflow consists of these scripts:
 |--------|----------|-------------|
 | `build-freebsd.sh` | macOS | Builds OpenEMR binaries using QEMU VM |
 | `run-freebsd-vm.sh` | **macOS** | Runs OpenEMR in a FreeBSD VM (built-in server) |
-| `run-freebsd-apache.sh` | **macOS** | Runs OpenEMR with Apache in a FreeBSD VM |
+| `run-freebsd-apache.sh` | **macOS** | Runs OpenEMR with Apache in a FreeBSD VM (CGI) |
+| `run-freebsd-fpm.sh` | **macOS** | Runs OpenEMR with Apache in a FreeBSD VM (FPM) |
 | `run-web-server.sh` | **Native FreeBSD** | Runs OpenEMR directly on FreeBSD systems |
-| `apache/` | **Native FreeBSD** | Apache VirtualHost configuration and setup scripts |
+| `apache_cgi/` | **Native FreeBSD** | Apache integration via CGI |
+| `apache_fpm/` | **Native FreeBSD** | Apache integration via PHP-FPM (Recommended) |
+
+**Note**: All scripts and configuration files have been verified on FreeBSD 15.0.
 
 **If you're on macOS**, use `run-freebsd-vm.sh` for a quick test with the built-in PHP server, or `run-freebsd-apache.sh` for a more realistic setup with Apache HTTP Server.
 
@@ -82,6 +86,7 @@ The build produces:
 | Artifact | Description                                                                 |
 |----------|-----------------------------------------------------------------------------|
 | `openemr-v7_0_4-freebsd-arm64.tar.gz` | Complete distribution package (see picture above for uncompressed contents) |
+| `php-fpm-v7_0_4-freebsd-arm64` | Native PHP-FPM binary for FreeBSD |
 
 ## Quick Start
 
@@ -225,6 +230,31 @@ The `run-freebsd-apache.sh` script provides a full web server environment by ins
 - **Correct Permissions**: Automatically configures `www:www` ownership and `777/666` permissions for the OpenEMR installer.
 - **Production-Like**: Mimics a real-world FreeBSD Apache deployment.
 
+## Running OpenEMR with Apache + FPM in FreeBSD VM
+
+The `run-freebsd-fpm.sh` script provides the most advanced and performance-oriented setup for FreeBSD. It installs Apache and configures it to use the static PHP-FPM binary.
+
+### Usage
+
+```bash
+./run-freebsd-fpm.sh [options]
+```
+
+### Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-p, --port PORT` | Host port to access OpenEMR | 8081 |
+| `-v, --version VER` | FreeBSD version | 15.0 |
+| `-m, --memory MEM` | VM memory in GB | 8 |
+| `-c, --cpus CPUS` | Number of CPU cores | 4 |
+| `--debug` | Enable debug logging | false |
+
+### Key Features
+- **Modern Architecture**: Uses PHP-FPM for better performance and process management.
+- **Automated Verification**: Runs a component test script inside the VM to ensure everything is configured correctly.
+- **Realistic Environment**: Provides the closest experience to a production FreeBSD deployment using the static binaries.
+
 ## Building OpenEMR for FreeBSD
 
 The `build-freebsd.sh` script compiles OpenEMR and PHP from source inside a FreeBSD VM.
@@ -282,44 +312,77 @@ The static PHP binary includes all extensions required by OpenEMR:
 
 ```
 freebsd/
-├── apache/                    # Apache setup scripts and configuration
-│   ├── httpd-openemr.conf     # VirtualHost template
-│   ├── setup-apache-config.sh # Automated setup script
-│   └── ...
-├── build-freebsd.sh           # Main build script
-├── run-freebsd-vm.sh          # VM runner for macOS users
+├── build-freebsd.sh           # FreeBSD build script (uses QEMU)
+├── run-freebsd-vm.sh          # Run OpenEMR in FreeBSD VM (built-in server)
+├── run-freebsd-apache.sh      # Run OpenEMR with Apache in FreeBSD VM (CGI)
+├── run-freebsd-fpm.sh         # Run OpenEMR with Apache + FPM in FreeBSD VM
 ├── run-web-server.sh          # Web server for native FreeBSD
 ├── php.ini                    # PHP configuration
+├── apache_cgi/                # Apache integration via CGI
+│   ├── httpd-openemr.conf     # VirtualHost template
+│   ├── php-wrapper.sh         # PHP CGI wrapper script
+│   ├── setup-apache-config.sh # Automated setup script
+│   ├── test-cgi-setup.sh      # Verification script
+│   └── README.md              # Detailed instructions
+├── apache_fpm/                # Apache integration via FPM
+│   ├── httpd-openemr.conf     # VirtualHost template
+│   ├── php-fpm.conf           # FPM configuration
+│   ├── run-fpm.sh             # FPM launcher
+│   ├── setup-apache-config.sh # Automated setup script
+│   ├── test-fpm-setup.sh      # Verification script
+│   └── README.md              # Detailed instructions
 └── README.md                  # This file
 ```
 
 ## Running on Apache (FreeBSD)
 
-For a more robust setup on native FreeBSD, you can use the included Apache configuration. This uses the static `php-cgi` binary and a wrapper script.
+We provide two ways to run OpenEMR with Apache on FreeBSD:
 
-1. **Prerequisites**: Install Apache
-   ```bash
-   pkg install apache24
-   ```
+### 1. Using PHP CGI (Classic)
 
-2. **Extract OpenEMR**:
-   ```bash
-   cd freebsd/apache
-   ./extract-openemr.sh
-   ```
+The `apache_cgi/` directory contains configuration for running OpenEMR using the static PHP CGI binary.
 
-3. **Configure Apache**:
-   ```bash
-   sudo ./setup-apache-config.sh
-   ```
+1.  **Extract OpenEMR**:
+    ```bash
+    cd freebsd/apache_cgi
+    ./extract-openemr.sh
+    ```
+2.  **Configure Apache**:
+    ```bash
+    sudo ./setup-apache-config.sh
+    ```
+3.  **Start Apache**:
+    ```bash
+    sudo sysrc apache24_enable=YES
+    sudo service apache24 start
+    ```
 
-4. **Start Apache**:
-   ```bash
-   sudo sysrc apache24_enable=YES
-   sudo service apache24 start
-   ```
+See [freebsd/apache_cgi/README.md](apache_cgi/README.md) for more details.
 
-See [freebsd/apache/README.md](apache/README.md) for more detailed instructions.
+### 2. Using PHP-FPM (Recommended)
+
+The `apache_fpm/` directory contains configuration for running OpenEMR using the static PHP FPM binary. This is generally faster and more production-like.
+
+1.  **Extract OpenEMR**:
+    ```bash
+    cd freebsd/apache_fpm
+    ./extract-openemr.sh
+    ```
+2.  **Configure Apache**:
+    ```bash
+    sudo ./setup-apache-config.sh
+    ```
+3.  **Start PHP-FPM**:
+    ```bash
+    ./run-fpm.sh
+    ```
+4.  **Start Apache**:
+    ```bash
+    sudo sysrc apache24_enable=YES
+    sudo service apache24 start
+    ```
+
+See [freebsd/apache_fpm/README.md](apache_fpm/README.md) for more details.
 
 ## Architecture
 
