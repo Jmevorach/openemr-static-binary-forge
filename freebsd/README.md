@@ -44,9 +44,9 @@ Complete guide for building and running OpenEMR on FreeBSD using QEMU on macOS.
 
 ## Pre-built Binaries
 
-If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/freebsd15-php85-openemr-v7_0_4-arm64-12262025).
+If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/freebsd15-php85-openemr-v7_0_4-arm64-12282025).
 
-**Latest Release**: [freebsd15-php85-openemr-v7_0_4-arm64-12262025](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/freebsd15-php85-openemr-v7_0_4-arm64-12262025)
+**Latest Release**: [freebsd15-php85-openemr-v7_0_4-arm64-12282025](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/freebsd15-php85-openemr-v7_0_4-arm64-12282025)
 
 **To use a pre-built binary on macOS:**
 1. Download the tarball to a new `dist` directory in the `freebsd` directory
