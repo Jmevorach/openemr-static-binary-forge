@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # OpenEMR Apache FPM Benchmark Script for FreeBSD
 # Uses Apache Benchmark (ab) to test performance
 
@@ -20,7 +20,7 @@ echo ""
 
 if ! command -v ab >/dev/null 2>&1; then
     echo "Error: Apache Benchmark (ab) not found."
-    echo "It is usually included with the apache24 package."
+    echo "Install it via pkg: pkg install apache24"
     exit 1
 fi
 

@@ -18,8 +18,24 @@ if [ -z "${PHP_CGI_BINARY:-}" ]; then
     # Look in parent directory of DOCUMENT_ROOT (typically freebsd directory)
     if [ -n "${DOCUMENT_ROOT:-}" ]; then
         PARENT_DIR="$(dirname "${DOCUMENT_ROOT}")"
-        # Find php-cgi-*-freebsd-* in parent directory
-        PHP_CGI_BINARY=$(find "${PARENT_DIR}" -maxdepth 1 -type f -name "php-cgi-*-freebsd-*" -perm +111 2>/dev/null | head -1)
+        
+        # 1. Try common standalone names (from dist/ folder or parent)
+        for search_path in "${PARENT_DIR}/dist" "${PARENT_DIR}"; do
+            if [ -d "${search_path}" ]; then
+                PHP_CGI_BINARY=$(find "${search_path}" -maxdepth 1 -type f -name "php-cgi-*-freebsd-*" -perm +111 2>/dev/null | head -1)
+                [ -n "${PHP_CGI_BINARY}" ] && break
+            fi
+        done
+        
+        # 2. Try standard bin/php-cgi path (from tarball extraction)
+        if [ -z "${PHP_CGI_BINARY}" ]; then
+            for search_path in "${PARENT_DIR}/dist" "${PARENT_DIR}"; do
+                if [ -f "${search_path}/bin/php-cgi" ]; then
+                    PHP_CGI_BINARY="${search_path}/bin/php-cgi"
+                    break
+                fi
+            done
+        fi
     fi
     
     # If still not found, try to find it relative to this script's location
@@ -28,7 +44,24 @@ if [ -z "${PHP_CGI_BINARY:-}" ]; then
         # Go up from cgi-bin to openemr-extracted, then to parent (freebsd)
         if [ -d "${SCRIPT_DIR}/../.." ]; then
             PARENT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-            PHP_CGI_BINARY=$(find "${PARENT_DIR}" -maxdepth 1 -type f -name "php-cgi-*-freebsd-*" -perm +111 2>/dev/null | head -1)
+            
+            # 1. Try common standalone names
+            for search_path in "${PARENT_DIR}/dist" "${PARENT_DIR}"; do
+                if [ -d "${search_path}" ]; then
+                    PHP_CGI_BINARY=$(find "${search_path}" -maxdepth 1 -type f -name "php-cgi-*-freebsd-*" -perm +111 2>/dev/null | head -1)
+                    [ -n "${PHP_CGI_BINARY}" ] && break
+                fi
+            done
+            
+            # 2. Try standard bin/php-cgi path
+            if [ -z "${PHP_CGI_BINARY}" ]; then
+                for search_path in "${PARENT_DIR}/dist" "${PARENT_DIR}"; do
+                    if [ -f "${search_path}/bin/php-cgi" ]; then
+                        PHP_CGI_BINARY="${search_path}/bin/php-cgi"
+                        break
+                    fi
+                done
+            fi
         fi
     fi
     
@@ -38,7 +71,7 @@ if [ -z "${PHP_CGI_BINARY:-}" ]; then
         echo "Content-Type: text/plain"
         echo ""
         echo "Error: PHP CGI binary not found"
-        echo "Please set PHP_CGI_BINARY environment variable or ensure php-cgi-*-freebsd-* exists in the parent directory"
+        echo "Please set PHP_CGI_BINARY environment variable or ensure php-cgi-*-freebsd-* exists in the parent or dist/ directory"
         exit 1
     fi
 fi
@@ -124,5 +157,16 @@ fi
 export REDIRECT_STATUS="${REDIRECT_STATUS:-200}"
 
 # Execute PHP CGI
-export LD_LIBRARY_PATH="$(dirname "${PHP_CGI_BINARY}")/lib:${LD_LIBRARY_PATH:-}"
+# Set library path for bundled libraries if they exist
+# We check parent directory and dist directory for lib/
+PHP_CGI_DIR="$(dirname "${PHP_CGI_BINARY}")"
+# If binary is in dist/bin/php-cgi, libraries are in dist/lib/
+# If binary is in dist/php-cgi-..., libraries are in dist/lib/
+if [[ "${PHP_CGI_DIR}" == */bin ]]; then
+    LIB_DIR="$(dirname "${PHP_CGI_DIR}")/lib"
+else
+    LIB_DIR="${PHP_CGI_DIR}/lib"
+fi
+
+export LD_LIBRARY_PATH="${LIB_DIR}:/usr/local/lib:${LD_LIBRARY_PATH:-}"
 exec "${PHP_CGI_BINARY}" "${SCRIPT_FILE}"

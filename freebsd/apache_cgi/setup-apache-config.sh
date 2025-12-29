@@ -7,7 +7,17 @@ set -e
 # Auto-detect script directory and project paths
 SCRIPT_DIR="$( cd "$( dirname "$0" )" && pwd )"
 FREEBSD_DIR="$( cd "${SCRIPT_DIR}/.." && pwd )"
-PROJECT_ROOT="$( cd "${FREEBSD_DIR}/.." && pwd )"
+
+# Smart detection of DIST_DIR
+if [ -d "${FREEBSD_DIR}/dist" ]; then
+    DIST_DIR="${FREEBSD_DIR}/dist"
+elif [ -d "${FREEBSD_DIR}/bin" ] && [ -f "${FREEBSD_DIR}/openemr.phar" ]; then
+    # We are likely inside the VM or in a flat distribution directory
+    DIST_DIR="${FREEBSD_DIR}"
+else
+    DIST_DIR="${FREEBSD_DIR}/dist"
+fi
+
 OPENEMR_PATH="${FREEBSD_DIR}/openemr-extracted"
 
 # FreeBSD Apache configuration directory
@@ -38,15 +48,25 @@ if [ ! -d "${OPENEMR_PATH}" ]; then
     exit 1
 fi
 
-# Verify PHP CGI binary exists (wrapper script will auto-detect it)
-PHP_CGI=$(find "${FREEBSD_DIR}" -maxdepth 1 -type f -name "php-cgi-*-freebsd-*" -perm +111 2>/dev/null | head -1)
-if [ -z "${PHP_CGI}" ] || [ ! -f "${PHP_CGI}" ]; then
-    echo "Warning: PHP CGI binary not found at ${FREEBSD_DIR}/php-cgi-*-freebsd-*"
+# Verify PHP CGI binary exists
+PHP_CGI_BINARY=""
+# 1. Try common standalone names (from dist/ folder)
+PHP_CGI_BINARY=$(find "${DIST_DIR}" -maxdepth 1 -type f -name "php-cgi-*-freebsd-*" -perm +111 2>/dev/null | head -1)
+
+# 2. Try standard bin/php-cgi path (from tarball extraction)
+if [ -z "${PHP_CGI_BINARY}" ] || [ ! -f "${PHP_CGI_BINARY}" ]; then
+    if [ -f "${DIST_DIR}/bin/php-cgi" ]; then
+        PHP_CGI_BINARY="${DIST_DIR}/bin/php-cgi"
+    fi
+fi
+
+if [ -z "${PHP_CGI_BINARY}" ] || [ ! -f "${PHP_CGI_BINARY}" ]; then
+    echo "Warning: PHP CGI binary not found in ${DIST_DIR}"
     echo "The wrapper script will try to auto-detect it, but you may need to run:"
     echo "  cd ${FREEBSD_DIR} && ./build-freebsd.sh"
     echo ""
 else
-    echo "✓ Found PHP CGI binary: $(basename "${PHP_CGI}")"
+    echo "✓ Found PHP CGI binary: $(basename "${PHP_CGI_BINARY}")"
 fi
 
 # Ensure cgi-bin directory exists

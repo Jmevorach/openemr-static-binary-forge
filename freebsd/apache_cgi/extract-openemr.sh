@@ -24,10 +24,20 @@ NC='\033[0m' # No Color
 
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PARENT_DIR="$( cd "${SCRIPT_DIR}/.." && pwd )"
+FREEBSD_DIR="$( cd "${SCRIPT_DIR}/.." && pwd )"
+
+# Smart detection of DIST_DIR
+if [ -d "${FREEBSD_DIR}/dist" ]; then
+    DIST_DIR="${FREEBSD_DIR}/dist"
+elif [ -d "${FREEBSD_DIR}/bin" ] && [ -f "${FREEBSD_DIR}/openemr.phar" ]; then
+    # We are likely inside the VM or in a flat distribution directory
+    DIST_DIR="${FREEBSD_DIR}"
+else
+    DIST_DIR="${FREEBSD_DIR}/dist"
+fi
 
 # Default output directory
-OUTPUT_DIR="${1:-${PARENT_DIR}/openemr-extracted}"
+OUTPUT_DIR="${1:-${FREEBSD_DIR}/openemr-extracted}"
 
 echo -e "${GREEN}============================================================================${NC}"
 echo -e "${GREEN}Extracting OpenEMR PHAR Archive (FreeBSD)${NC}"
@@ -35,14 +45,22 @@ echo -e "${GREEN}===============================================================
 echo ""
 
 # Find the PHP CLI binary
-PHP_CLI_PATTERN="php-cli-*-freebsd-*"
-PHP_CLI_BINARY=$(find "${PARENT_DIR}" -maxdepth 1 -type f -name "${PHP_CLI_PATTERN}" -perm +111 2>/dev/null | head -1)
+PHP_CLI_BINARY=""
+# 1. Try common standalone names (from dist/ folder)
+PHP_CLI_BINARY=$(find "${DIST_DIR}" -maxdepth 1 -type f -name "php-cli-*-freebsd-*" -perm +111 2>/dev/null | head -1)
+
+# 2. Try standard bin/php path (from tarball extraction)
+if [ -z "${PHP_CLI_BINARY}" ] || [ ! -f "${PHP_CLI_BINARY}" ]; then
+    if [ -f "${DIST_DIR}/bin/php" ]; then
+        PHP_CLI_BINARY="${DIST_DIR}/bin/php"
+    fi
+fi
 
 if [ -z "${PHP_CLI_BINARY}" ] || [ ! -f "${PHP_CLI_BINARY}" ]; then
     echo -e "${RED}ERROR: PHP CLI binary not found${NC}"
-    echo "Expected: ${PARENT_DIR}/${PHP_CLI_PATTERN}"
+    echo "Checked: ${DIST_DIR}/php-cli-*-freebsd-* and ${DIST_DIR}/bin/php"
     echo ""
-    echo "Please build the binary first using: cd ${PARENT_DIR} && ./build-freebsd.sh"
+    echo "Please build the binary first using: cd ${FREEBSD_DIR} && ./build-freebsd.sh"
     exit 1
 fi
 
@@ -50,13 +68,22 @@ echo -e "${GREEN}Found PHP CLI binary: $(basename "${PHP_CLI_BINARY}")${NC}"
 echo ""
 
 # Find the PHAR file
-PHAR_FILE=$(find "${PARENT_DIR}" -maxdepth 1 -type f \( -name "openemr-*.phar" -o -name "openemr.phar" \) 2>/dev/null | head -1)
+PHAR_FILE=""
+# 1. Try common standalone names
+PHAR_FILE=$(find "${DIST_DIR}" -maxdepth 1 -type f -name "openemr-*.phar" 2>/dev/null | head -1)
+
+# 2. Try standard openemr.phar name
+if [ -z "${PHAR_FILE}" ] || [ ! -f "${PHAR_FILE}" ]; then
+    if [ -f "${DIST_DIR}/openemr.phar" ]; then
+        PHAR_FILE="${DIST_DIR}/openemr.phar"
+    fi
+fi
 
 if [ -z "${PHAR_FILE}" ] || [ ! -f "${PHAR_FILE}" ]; then
     echo -e "${RED}ERROR: OpenEMR PHAR file not found${NC}"
-    echo "Expected: ${PARENT_DIR}/${PHAR_PATTERN}"
+    echo "Checked: ${DIST_DIR}/openemr-*.phar and ${DIST_DIR}/openemr.phar"
     echo ""
-    echo "Please build the binary first using: cd ${PARENT_DIR} && ./build-freebsd.sh"
+    echo "Please build the binary first using: cd ${FREEBSD_DIR} && ./build-freebsd.sh"
     exit 1
 fi
 

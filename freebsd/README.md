@@ -77,7 +77,7 @@ The FreeBSD workflow consists of these scripts:
 
 **If you're on macOS**, use `run-freebsd-vm.sh` for a quick test with the built-in PHP server, or `run-freebsd-apache.sh` for a more realistic setup with Apache HTTP Server.
 
-**If you're on native FreeBSD**, copy the distribution tarball to your FreeBSD system and use `run-web-server.sh` (built-in server) or the `apache/` folder for a production-like setup.
+**If you're on native FreeBSD**, copy the distribution tarball to your FreeBSD system and use `run-web-server.sh` (built-in server) or the `apache_cgi/` or `apache_fpm/` folders for a production-like setup.
 
 ### Build Artifacts
 
@@ -323,6 +323,7 @@ freebsd/
 │   ├── php-wrapper.sh         # PHP CGI wrapper script
 │   ├── setup-apache-config.sh # Automated setup script
 │   ├── test-cgi-setup.sh      # Verification script
+│   ├── benchmark.sh           # Performance benchmarking script
 │   └── README.md              # Detailed instructions
 ├── apache_fpm/                # Apache integration via FPM
 │   ├── httpd-openemr.conf     # VirtualHost template
@@ -330,6 +331,7 @@ freebsd/
 │   ├── run-fpm.sh             # FPM launcher
 │   ├── setup-apache-config.sh # Automated setup script
 │   ├── test-fpm-setup.sh      # Verification script
+│   ├── benchmark.sh           # Performance benchmarking script
 │   └── README.md              # Detailed instructions
 └── README.md                  # This file
 ```

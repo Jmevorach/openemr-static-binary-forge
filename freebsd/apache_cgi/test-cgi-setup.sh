@@ -6,22 +6,30 @@ set -e
 
 SCRIPT_DIR="$( cd "$( dirname "$0" )" && pwd )"
 FREEBSD_DIR="$( cd "${SCRIPT_DIR}/.." && pwd )"
+
+# Smart detection of DIST_DIR
+if [ -d "${FREEBSD_DIR}/dist" ]; then
+    DIST_DIR="${FREEBSD_DIR}/dist"
+elif [ -d "${FREEBSD_DIR}/bin" ] && [ -f "${FREEBSD_DIR}/openemr.phar" ]; then
+    # We are likely inside the VM or in a flat distribution directory
+    DIST_DIR="${FREEBSD_DIR}"
+else
+    DIST_DIR="${FREEBSD_DIR}/dist"
+fi
+
 OPENEMR_PATH="${FREEBSD_DIR}/openemr-extracted"
 ARCH=$(uname -m)
 
-# Detect architecture for binary naming
-if [ "${ARCH}" = "arm64" ] || [ "${ARCH}" = "aarch64" ]; then
-    BINARY_ARCH="arm64"
-elif [ "${ARCH}" = "x86_64" ] || [ "${ARCH}" = "amd64" ]; then
-    BINARY_ARCH="amd64"
-else
-    BINARY_ARCH="${ARCH}"
-fi
+# Find the PHP CGI binary
+PHP_CGI=""
+# 1. Try common standalone names (from dist/ folder)
+PHP_CGI=$(find "${DIST_DIR}" -maxdepth 1 -type f -name "php-cgi-*-freebsd-*" -perm +111 2>/dev/null | head -1)
 
-PHP_CGI=$(find "${FREEBSD_DIR}" -maxdepth 1 -type f \( -name "php-cgi-*-freebsd-arm64" -o -name "php-cgi-*-freebsd-aarch64" -o -name "php-cgi-*-freebsd-amd64" -o -name "php-cgi-*-freebsd-x86_64" \) -perm +111 2>/dev/null | head -1)
-# Fallback to simple name
-if [ -z "${PHP_CGI}" ]; then
-    PHP_CGI=$(find "${FREEBSD_DIR}" -maxdepth 1 -type f -name "php-cgi" -perm +111 2>/dev/null | head -1)
+# 2. Try standard bin/php-cgi path (from tarball extraction)
+if [ -z "${PHP_CGI}" ] || [ ! -f "${PHP_CGI}" ]; then
+    if [ -f "${DIST_DIR}/bin/php-cgi" ]; then
+        PHP_CGI="${DIST_DIR}/bin/php-cgi"
+    fi
 fi
 WRAPPER="${OPENEMR_PATH}/cgi-bin/php-wrapper.cgi"
 

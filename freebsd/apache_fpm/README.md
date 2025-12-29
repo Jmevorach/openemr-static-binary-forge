@@ -11,7 +11,9 @@ This directory contains configuration files and scripts for running OpenEMR loca
   - [2. Configure Apache](#2-configure-apache)
   - [3. Start PHP-FPM](#3-start-php-fpm)
   - [4. Start Apache](#4-start-apache)
-  - [5. Access OpenEMR](#5-access-openemr)
+  - [5. Verify the Setup](#5-verify-the-setup)
+  - [6. Access OpenEMR](#6-access-openemr)
+- [Benchmarking](#benchmarking)
 - [Configuration Files](#configuration-files)
 - [Troubleshooting](#troubleshooting)
 
@@ -120,6 +122,22 @@ You can test the components individually using the test script:
 
 OpenEMR should now be accessible at:
 - `http://localhost/`
+
+## Benchmarking
+
+You can test the performance of the Apache FPM setup using the included benchmark script:
+
+```bash
+cd freebsd/apache_fpm
+./benchmark.sh [url] [concurrency] [requests]
+```
+
+Example:
+```bash
+./benchmark.sh http://localhost/test.php 10 100
+```
+
+The script uses `ab` (Apache Benchmark) to measure requests per second, latency, and throughput.
 
 ## Configuration Files
 

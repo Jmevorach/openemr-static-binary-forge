@@ -13,6 +13,12 @@ build-tmp/
 openemr-extracted/
 openemr-fpm-extracted/
 openemr-source/
+openemr-phar/
+openemr-extract-temp/
+output/
+Dockerfile.build
+docker-build-internal.sh
+create-phar.php
 
 # macOS
 .DS_Store

@@ -32,6 +32,7 @@ fi
 export LD_LIBRARY_PATH="${DIST_DIR}/lib:/usr/local/lib:${LD_LIBRARY_PATH:-}"
 
 # Detect architecture for binary naming
+ARCH=$(uname -m)
 if [ "${ARCH}" = "arm64" ] || [ "${ARCH}" = "aarch64" ]; then
     BINARY_ARCH="arm64"
 elif [ "${ARCH}" = "x86_64" ] || [ "${ARCH}" = "amd64" ]; then
