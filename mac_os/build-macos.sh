@@ -34,8 +34,8 @@ export PHP_VERSION="${PHP_VERSION:-8.5}"
 #
 # Static PHP CLI (SPC) Configuration:
 # The static-php-cli is downloaded as a pre-built release from GitHub.
-# Pinned to release 2.7.9 for stability. Override to use a different release.
-export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.7.9}"
+# Using latest release 2.7.10. Override to use a different release.
+export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.7.10}"
 export STATIC_PHP_CLI_REPO="${STATIC_PHP_CLI_REPO:-crazywhalecc/static-php-cli}"
 #
 # PHP Extensions (comma-separated list):

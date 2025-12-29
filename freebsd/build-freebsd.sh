@@ -26,7 +26,7 @@
 export OPENEMR_VERSION="${OPENEMR_VERSION:-v7_0_4}"
 export FREEBSD_VERSION="${FREEBSD_VERSION:-15.0}"
 export PHP_VERSION="${PHP_VERSION:-8.5}"
-export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.7.9}"
+export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.7.10}"
 export STATIC_PHP_CLI_REPO="${STATIC_PHP_CLI_REPO:-crazywhalecc/static-php-cli}"
 export PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick,filter,curl,dom,fileinfo,simplexml,xmlreader,xmlwriter,xsl,ctype,calendar,tokenizer}"
 
