@@ -39,7 +39,7 @@ export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.7.9}"
 export STATIC_PHP_CLI_REPO="${STATIC_PHP_CLI_REPO:-crazywhalecc/static-php-cli}"
 #
 # PHP Extensions (comma-separated list):
-export PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick}"
+export PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick,filter,curl,dom,fileinfo,simplexml,xmlreader,xmlwriter,xsl,ctype,calendar,tokenizer}"
 # ==============================================================================
 
 set -euo pipefail
@@ -505,7 +505,7 @@ echo -e "${YELLOW}Step 3/5: Preparing SPC and downloading dependencies...${NC}"
 cd "${BUILD_DIR}"
 
 # PHP extensions required by OpenEMR (use from environment or default)
-PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick}"
+PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick,filter,curl,dom,fileinfo,simplexml,xmlreader,xmlwriter,xsl,ctype,calendar,tokenizer}"
 
 echo "Running SPC doctor check..."
 "${SPC_BIN}" doctor --auto-fix || {
