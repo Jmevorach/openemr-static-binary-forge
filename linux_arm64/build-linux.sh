@@ -45,7 +45,7 @@ export PHP_VERSION="${PHP_VERSION:-8.5}"
 # for stability. Override STATIC_PHP_CLI_COMMIT to use a different commit.
 export STATIC_PHP_CLI_REPO="${STATIC_PHP_CLI_REPO:-https://github.com/crazywhalecc/static-php-cli.git}"
 export STATIC_PHP_CLI_BRANCH="${STATIC_PHP_CLI_BRANCH:-main}"
-export STATIC_PHP_CLI_COMMIT="${STATIC_PHP_CLI_COMMIT:-59a6e2753265622b7e8d599f791f1ad3c2e60388}"
+export STATIC_PHP_CLI_COMMIT="${STATIC_PHP_CLI_COMMIT:-8650ce4f8ff7c61ce47eb80a648b1ea386f0d1c2}"
 #
 # PHP Extensions (comma-separated list):
 export PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick,filter,curl,dom,fileinfo,simplexml,xmlreader,xmlwriter,xsl,ctype,calendar,tokenizer}"
