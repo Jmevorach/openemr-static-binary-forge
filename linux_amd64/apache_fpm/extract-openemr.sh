@@ -16,8 +16,19 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PARENT_DIR="$( cd "${SCRIPT_DIR}/.." && pwd )"
 
+# Smart detection of DIST_DIR (check current parent or dist/ subdirectory)
+if [ -d "${PARENT_DIR}/dist" ]; then
+    DIST_DIR="${PARENT_DIR}/dist"
+else
+    DIST_DIR="${PARENT_DIR}"
+fi
+
 # Default output directory
-OUTPUT_DIR="${1:-${PARENT_DIR}/openemr-extracted}"
+if [[ "${1:-}" == "-y" ]]; then
+    OUTPUT_DIR="${PARENT_DIR}/openemr-extracted"
+else
+    OUTPUT_DIR="${1:-${PARENT_DIR}/openemr-extracted}"
+fi
 
 echo -e "${GREEN}============================================================================${NC}"
 echo -e "${GREEN}Extracting OpenEMR PHAR Archive (Linux amd64)${NC}"
@@ -26,11 +37,11 @@ echo ""
 
 # Find the PHP CLI binary
 PHP_CLI_PATTERN="php-cli-*-linux-amd64"
-PHP_CLI_BINARY=$(find "${PARENT_DIR}" -maxdepth 1 -type f \( -name "${PHP_CLI_PATTERN}" -o -name "php-cli-linux-amd64" \) -perm /111 2>/dev/null | head -1)
+PHP_CLI_BINARY=$(find "${DIST_DIR}" -maxdepth 1 -type f \( -name "${PHP_CLI_PATTERN}" -o -name "php-cli-linux-amd64" \) -perm /111 2>/dev/null | head -1)
 
 if [ -z "${PHP_CLI_BINARY}" ] || [ ! -f "${PHP_CLI_BINARY}" ]; then
     echo -e "${RED}ERROR: PHP CLI binary not found${NC}"
-    echo "Expected: ${PARENT_DIR}/${PHP_CLI_PATTERN}"
+    echo "Checked: ${DIST_DIR}/${PHP_CLI_PATTERN}"
     echo ""
     echo "Please build the binary first using: cd ${PARENT_DIR} && ./build-linux.sh"
     exit 1
@@ -39,10 +50,10 @@ fi
 echo -e "${GREEN}Found PHP CLI binary: $(basename "${PHP_CLI_BINARY}")${NC}"
 
 # Find the PHAR file
-PHAR_FILE=$(find "${PARENT_DIR}" -maxdepth 1 -type f \( -name "openemr-*.phar" -o -name "openemr.phar" \) 2>/dev/null | head -1)
+PHAR_FILE=$(find "${DIST_DIR}" -maxdepth 1 -type f \( -name "openemr-*.phar" -o -name "openemr.phar" \) 2>/dev/null | head -1)
 
 if [ -z "${PHAR_FILE}" ] || [ ! -f "${PHAR_FILE}" ]; then
-    echo -e "${RED}ERROR: OpenEMR PHAR file not found${NC}"
+    echo -e "${RED}ERROR: OpenEMR PHAR file not found in ${DIST_DIR}${NC}"
     exit 1
 fi
 

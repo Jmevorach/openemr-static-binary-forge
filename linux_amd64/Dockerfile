@@ -6,9 +6,10 @@
 
 FROM debian:bookworm-slim
 
-# Copy the static binary, PHP CLI, and PHAR
+# Copy the static binary, PHP CLI, PHP FPM, and PHAR
 COPY openemr-*-linux-amd64 /usr/local/bin/openemr
 COPY php-cli-*-linux-amd64 /usr/local/bin/php
+COPY php-fpm-*-linux-amd64 /usr/local/bin/php-fpm
 COPY openemr-*.phar /usr/local/share/openemr.phar
 
 # Copy entrypoint script

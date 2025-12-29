@@ -113,6 +113,7 @@ After a successful build, the binaries will be located at:
 linux_amd64/openemr-v7_0_4-linux-amd64
 linux_amd64/php-cli-v7_0_4-linux-amd64
 linux_amd64/php-cgi-v7_0_4-linux-amd64
+linux_amd64/php-fpm-v7_0_4-linux-amd64
 ```
 
 #### Using the Binary
@@ -142,10 +143,12 @@ This script:
 
 **For Production-style Web Server (Apache):**
 
-A dedicated Apache setup using the new CGI binary is also available:
+Two Apache setups are available:
+1. **CGI (Classic)**: Uses the `php-cgi` binary via a wrapper. See the `apache_cgi` directory.
+2. **FPM (Modern)**: Uses the `php-fpm` binary via `mod_proxy_fcgi`. See the `apache_fpm` directory.
 
 ```bash
-cd linux_amd64/apache
+cd linux_amd64/apache_cgi
 ./README.md  # See instructions for Apache CGI setup
 ```
 
@@ -182,7 +185,21 @@ A `php.ini` file is included in this directory to configure PHP settings for Ope
 linux_amd64/
 ├── build-linux.sh                   # Main build script
 ├── run-web-server.sh                # Web server launcher script (Docker Compose)
+├── run-fpm.sh                       # Helper to run FPM binary
 ├── php.ini                          # PHP configuration file (customizable)
+├── apache_cgi/                      # Apache integration via CGI
+│   ├── httpd-openemr.conf           # VirtualHost template
+│   ├── php-wrapper.sh               # PHP CGI wrapper script
+│   ├── setup-apache-config.sh       # Automated setup script
+│   ├── benchmark.sh                 # Performance benchmarking script
+│   └── README.md                    # Detailed instructions
+├── apache_fpm/                      # Apache integration via FPM
+│   ├── httpd-openemr.conf           # VirtualHost template
+│   ├── php-fpm.conf                 # FPM configuration
+│   ├── setup-apache-config.sh       # Automated setup script
+│   ├── test-fpm-setup.sh            # Verification script
+│   ├── benchmark.sh                 # Performance benchmarking script
+│   └── README.md                    # Detailed instructions
 ├── Dockerfile                       # Dockerfile for running OpenEMR web server
 ├── docker-compose.yml               # Docker Compose configuration
 ├── docker-entrypoint.sh             # Main entrypoint script for container
