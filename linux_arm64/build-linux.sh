@@ -594,6 +594,7 @@ cd /tmp
 "${SPC_BIN}" build \
     --build-cli \
     --build-cgi \
+    --build-fpm \
     --build-micro \
     --debug \
     "${PHP_EXTENSIONS}"
@@ -642,6 +643,13 @@ if [ -n "${PHP_CGI_BINARY}" ] && [ -f "${PHP_CGI_BINARY}" ]; then
     cp "${PHP_CGI_BINARY}" "/output/php-cgi-${OPENEMR_TAG}-linux-${TARGET_ARCH}"
     chmod +x "/output/php-cgi-${OPENEMR_TAG}-linux-${TARGET_ARCH}"
     echo "✓ PHP CGI binary saved"
+fi
+
+PHP_FPM_BINARY=$(find /tmp /build -name "php-fpm" -type f -path "*/buildroot/bin/php-fpm" 2>/dev/null | head -1)
+if [ -n "${PHP_FPM_BINARY}" ] && [ -f "${PHP_FPM_BINARY}" ]; then
+    cp "${PHP_FPM_BINARY}" "/output/php-fpm-${OPENEMR_TAG}-linux-${TARGET_ARCH}"
+    chmod +x "/output/php-fpm-${OPENEMR_TAG}-linux-${TARGET_ARCH}"
+    echo "✓ PHP FPM binary saved"
 fi
 
 if [ -f "${PHAR_FILE}" ]; then
@@ -727,6 +735,14 @@ if [ -f "${PHP_CGI_ROOT_BINARY}" ]; then
     cp "${PHP_CGI_ROOT_BINARY}" "${PHP_CGI_ROOT}"
     chmod +x "${PHP_CGI_ROOT}"
     echo -e "${GREEN}✓ PHP CGI also saved to project root: $(basename "${PHP_CGI_ROOT}")${NC}"
+fi
+
+PHP_FPM_ROOT_BINARY="${SCRIPT_DIR}/php-fpm-${OPENEMR_TAG}-linux-${TARGET_ARCH}"
+if [ -f "${PHP_FPM_ROOT_BINARY}" ]; then
+    PHP_FPM_ROOT="${PROJECT_ROOT}/php-fpm-${OPENEMR_TAG}-linux-${TARGET_ARCH}"
+    cp "${PHP_FPM_ROOT_BINARY}" "${PHP_FPM_ROOT}"
+    chmod +x "${PHP_FPM_ROOT}"
+    echo -e "${GREEN}✓ PHP FPM also saved to project root: $(basename "${PHP_FPM_ROOT}")${NC}"
 fi
 
 if [ -f "${PHAR_FILE}" ]; then

@@ -16,9 +16,10 @@ RUN useradd -r -s /bin/sh -u 1000 openemr && \
     mkdir -p /app /app/openemr-extracted && \
     chown -R openemr:openemr /app
 
-# Copy the static binary, PHP CLI, and PHAR
+# Copy the static binary, PHP CLI, PHP FPM, and PHAR
 COPY openemr-*-linux-arm64 /usr/local/bin/openemr
 COPY php-cli-*-linux-arm64 /usr/local/bin/php
+COPY php-fpm-*-linux-arm64 /usr/local/bin/php-fpm
 COPY openemr-*.phar /usr/local/share/openemr.phar
 
 # Copy entrypoint scripts

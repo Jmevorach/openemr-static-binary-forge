@@ -28,10 +28,10 @@ If you prefer to run Apache and OpenEMR inside a container, a Docker-based setup
 
 ### 1. Build and Run
 
-Simply run the provided script from the `linux_arm64/apache` directory:
+Simply run the provided script from the `linux_arm64/apache_cgi` directory:
 
 ```bash
-cd linux_arm64/apache
+cd linux_arm64/apache_cgi
 chmod +x run-apache-docker.sh
 ./run-apache-docker.sh
 ```
@@ -53,7 +53,7 @@ Once the container is running, access it at:
 ## Local Apache Setup (Non-Docker)
 
 ```
-linux_arm64/apache/
+linux_arm64/apache_cgi/
 ├── httpd-openemr.conf        # Apache virtual host configuration template
 ├── php-wrapper.sh            # PHP CGI wrapper script template
 ├── extract-openemr.sh        # Helper script to extract PHAR
@@ -87,7 +87,7 @@ linux_arm64/apache/
 First, extract the OpenEMR PHAR archive:
 
 ```bash
-cd linux_arm64/apache
+cd linux_arm64/apache_cgi
 ./extract-openemr.sh
 ```
 
@@ -107,7 +107,7 @@ cd linux_arm64/apache
 Run the setup script to automatically configure Apache:
 
 ```bash
-cd linux_arm64/apache
+cd linux_arm64/apache_cgi
 sudo ./setup-apache-config.sh
 ```
 
@@ -144,7 +144,7 @@ OpenEMR should now be accessible at:
 ## Benchmarking
 
 ```bash
-cd linux_arm64/apache
+cd linux_arm64/apache_cgi
 ./benchmark.sh [url] [concurrency] [requests]
 ```
 

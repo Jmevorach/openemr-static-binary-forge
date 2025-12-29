@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create directory structure
-RUN mkdir -p /app/apache
+RUN mkdir -p /app/apache_cgi
 
 # Set working directory
 WORKDIR /app
@@ -25,12 +25,12 @@ COPY php-cgi-*-linux-arm64 /app/php-cgi-linux-arm64
 COPY openemr-*.phar /app/openemr.phar
 
 # Copy the apache materials
-COPY apache/*.sh /app/apache/
-COPY apache/httpd-openemr.conf /app/apache/
-COPY apache/php-wrapper.sh /app/apache/
+COPY apache_cgi/*.sh /app/apache_cgi/
+COPY apache_cgi/httpd-openemr.conf /app/apache_cgi/
+COPY apache_cgi/php-wrapper.sh /app/apache_cgi/
 
 # Make scripts executable
-RUN chmod +x /app/apache/*.sh /app/php-cli-linux-arm64 /app/php-cgi-linux-arm64
+RUN chmod +x /app/apache_cgi/*.sh /app/php-cli-linux-arm64 /app/php-cgi-linux-arm64
 
 # Create the entrypoint script
 RUN printf '#!/bin/bash\n\
@@ -39,7 +39,7 @@ set -e\n\
 echo "Starting OpenEMR Apache CGI Setup..."\n\
 \n\
 # 1. Extract OpenEMR\n\
-cd /app/apache\n\
+cd /app/apache_cgi\n\
 AUTO_CONFIRM=true ./extract-openemr.sh\n\
 \n\
 # 2. Run Setup Script (modifies Apache config)\n\

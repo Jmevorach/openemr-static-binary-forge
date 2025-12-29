@@ -353,7 +353,9 @@ Each platform includes a web server launcher script:
 | **macOS** | `cd mac_os && ./run-web-server.sh [port]` | Uses built-in PHP server |
 | **macOS (Apache)** | `cd mac_os/apache && ./setup-apache-config.sh` | Configures local Apache |
 | **Linux (amd64)** | `cd linux_amd64 && ./run-web-server.sh [port]` | Uses Docker Compose |
+| **Linux (amd64 FPM)** | `cd linux_amd64 && ./run-fpm.sh` | Runs FPM binary |
 | **Linux (arm64)** | `cd linux_arm64 && ./run-web-server.sh [port]` | Uses Docker Compose |
+| **Linux (arm64 FPM)** | `cd linux_arm64 && ./run-fpm.sh` | Runs FPM binary |
 | **FreeBSD (VM)** | `cd freebsd && ./run-freebsd-vm.sh -p [port]` | Uses QEMU + built-in server |
 | **FreeBSD (Apache VM)** | `cd freebsd && ./run-freebsd-apache.sh -p [port]` | Uses QEMU + Apache (CGI) |
 | **FreeBSD (FPM VM)** | `cd freebsd && ./run-freebsd-fpm.sh -p [port]` | Uses QEMU + Apache (FPM) |

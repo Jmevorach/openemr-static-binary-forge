@@ -105,6 +105,7 @@ After a successful build, the binaries will be located at:
 linux_arm64/openemr-v7_0_4-linux-arm64
 linux_arm64/php-cli-v7_0_4-linux-arm64
 linux_arm64/php-cgi-v7_0_4-linux-arm64
+linux_arm64/php-fpm-v7_0_4-linux-arm64
 ```
 
 #### Using the Binary
@@ -130,18 +131,20 @@ This script:
 
 **For Production-style Web Server (Apache):**
 
-A dedicated Apache setup using the new CGI binary is also available. You can run it directly on your host or using the provided Docker setup:
+Two Apache setups are available:
+1. **CGI (Classic)**: Uses the `php-cgi` binary via a wrapper. See the `apache_cgi` directory.
+2. **FPM (Modern)**: Uses the `php-fpm` binary via `mod_proxy_fcgi`. See the `apache_fpm` directory.
 
 **Option A: Docker (Recommended for testing)**
 ```bash
-cd linux_arm64/apache
+cd linux_arm64/apache_cgi
 ./run-apache-docker.sh
 ```
 
 **Option B: Local Installation**
-See the instructions in the `apache` directory:
+See the instructions in the `apache_cgi` directory:
 ```bash
-cd linux_arm64/apache
+cd linux_arm64/apache_cgi
 # Read instructions in README.md
 ```
 
@@ -171,12 +174,26 @@ A `php.ini` file is included in this directory to configure PHP settings for Ope
 
 ```
 linux_arm64/
-├── build-linux.sh            # Main build script
-├── run-web-server.sh         # Web server launcher script
-├── php.ini                   # PHP configuration file (customizable)
-├── Dockerfile.build          # Dockerfile (generated during build)
-├── docker-build-internal.sh  # Internal build script (generated during build)
-└── README.md                 # This file
+├── build-linux.sh             # Main build script
+├── run-web-server.sh          # Web server launcher script
+├── php.ini                    # PHP configuration file (customizable)
+├── apache_cgi/                # Apache integration via CGI
+│   ├── httpd-openemr.conf     # VirtualHost template
+│   ├── php-wrapper.sh         # PHP CGI wrapper script
+│   ├── setup-apache-config.sh # Automated setup script
+│   ├── benchmark.sh           # Performance benchmarking script
+│   └── README.md              # Detailed instructions
+├── apache_fpm/                # Apache integration via FPM
+│   ├── httpd-openemr.conf     # VirtualHost template
+│   ├── php-fpm.conf           # FPM configuration
+│   ├── run-fpm.sh             # Helper to run FPM binary
+│   ├── setup-apache-config.sh # Automated setup script
+│   ├── test-fpm-setup.sh      # Verification script
+│   ├── benchmark.sh           # Performance benchmarking script
+│   └── README.md              # Detailed instructions
+├── Dockerfile.build           # Dockerfile (generated during build)
+├── docker-build-internal.sh   # Internal build script (generated during build)
+└── README.md                  # This file
 ```
 
 ## How It Works
