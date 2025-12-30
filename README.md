@@ -47,7 +47,7 @@ OpenEMR is a popular open-source electronic health records (EHR) and medical pra
 - **No dependencies**: No need to install PHP or other software on target systems
 - **Portable**: Copy the binary to any compatible system and run it
 - **Optimized builds**: Automatically uses all available CPU cores and RAM for faster builds
-- **Automated Web Server Runners**: Includes scripts for both PHP's built-in server and Apache HTTP Server (with CGI support)
+- **Automated Web Server Runners**: Includes scripts for both PHP's built-in server and Apache HTTP Server (with both CGI and FPM support)
 - **Easy to use**: Single executable with OpenEMR and PHP runtime
 
 ## Platform Build Guides
@@ -98,41 +98,115 @@ openemr-static-binary-forge/
 │   ├── build-macos.sh                # macOS build script
 │   ├── run-web-server.sh             # macOS web server launcher
 │   ├── php.ini                       # PHP configuration (customizable)
-│   ├── apache/                       # Apache HTTP Server example
+│   ├── apache_cgi/                   # Apache HTTP Server integration (CGI)
 │   │   ├── httpd-openemr.conf        # Apache virtual host configuration
 │   │   ├── php-wrapper.sh            # PHP CGI wrapper script template
 │   │   ├── setup-apache-config.sh    # Automated Apache configuration script
 │   │   ├── test-cgi-setup.sh         # CGI setup verification script
 │   │   ├── benchmark.sh              # Apache performance benchmarking script
-│   │   └── README.md                 # Apache setup instructions
+│   │   ├── extract-openemr.sh        # OpenEMR extraction script
+│   │   └── README.md                 # Apache CGI setup instructions
+│   ├── apache_fpm/                   # Apache HTTP Server integration (FPM)
+│   │   ├── httpd-openemr.conf        # Apache virtual host configuration
+│   │   ├── php-fpm.conf              # PHP-FPM configuration
+│   │   ├── setup-apache-config.sh    # Automated Apache configuration script
+│   │   ├── test-fpm-setup.sh         # FPM setup verification script
+│   │   ├── benchmark.sh              # Apache performance benchmarking script
+│   │   ├── extract-openemr.sh        # OpenEMR extraction script
+│   │   ├── run-fpm.sh                # PHP-FPM launcher script
+│   │   └── README.md                 # Apache FPM setup instructions
 │   └── README.md                     # macOS build guide
 ├── linux_amd64/                      # Linux amd64 build files
 │   ├── build-linux.sh                # Linux amd64 build script
 │   ├── run-web-server.sh             # Linux amd64 web server launcher (Docker)
+│   ├── run-fpm.sh                    # PHP-FPM launcher script
 │   ├── Dockerfile                    # Docker image for running OpenEMR
 │   ├── docker-compose.yml            # Docker Compose configuration
 │   ├── docker-entrypoint.sh          # Container entrypoint script
 │   ├── docker-entrypoint-wrapper.sh  # Permissions wrapper
 │   ├── php.ini                       # PHP configuration (customizable)
+│   ├── apache_cgi/                   # Apache HTTP Server integration (CGI)
+│   │   ├── httpd-openemr.conf        # Apache virtual host configuration
+│   │   ├── php-wrapper.sh            # PHP CGI wrapper script template
+│   │   ├── setup-apache-config.sh    # Automated Apache configuration script
+│   │   ├── test-cgi-setup.sh         # CGI setup verification script
+│   │   ├── benchmark.sh              # Apache performance benchmarking script
+│   │   ├── extract-openemr.sh        # OpenEMR extraction script
+│   │   ├── run-apache-docker.sh       # Docker-based Apache launcher
+│   │   ├── Dockerfile.docker          # Docker image for Apache setup
+│   │   └── README.md                  # Apache CGI setup instructions
+│   ├── apache_fpm/                   # Apache HTTP Server integration (FPM)
+│   │   ├── httpd-openemr.conf        # Apache virtual host configuration
+│   │   ├── php-fpm.conf              # PHP-FPM configuration
+│   │   ├── setup-apache-config.sh    # Automated Apache configuration script
+│   │   ├── test-fpm-setup.sh         # FPM setup verification script
+│   │   ├── benchmark.sh              # Apache performance benchmarking script
+│   │   ├── extract-openemr.sh        # OpenEMR extraction script
+│   │   ├── run-fpm-docker.sh          # Docker-based FPM launcher
+│   │   ├── run-fpm.sh                 # PHP-FPM launcher script
+│   │   ├── Dockerfile.docker          # Docker image for FPM setup
+│   │   └── README.md                  # Apache FPM setup instructions
 │   └── README.md                     # Linux amd64 build guide
 ├── linux_arm64/                      # Linux arm64 build files
 │   ├── build-linux.sh                # Linux arm64 build script
 │   ├── run-web-server.sh             # Linux arm64 web server launcher (Docker)
+│   ├── run-fpm.sh                    # PHP-FPM launcher script
 │   ├── Dockerfile                    # Docker image for running OpenEMR
 │   ├── docker-compose.yml            # Docker Compose configuration
 │   ├── docker-entrypoint.sh          # Container entrypoint script
 │   ├── docker-entrypoint-wrapper.sh  # Permissions wrapper
 │   ├── php.ini                       # PHP configuration (customizable)
+│   ├── apache_cgi/                   # Apache HTTP Server integration (CGI)
+│   │   ├── httpd-openemr.conf        # Apache virtual host configuration
+│   │   ├── php-wrapper.sh            # PHP CGI wrapper script template
+│   │   ├── setup-apache-config.sh    # Automated Apache configuration script
+│   │   ├── test-cgi-setup.sh         # CGI setup verification script
+│   │   ├── benchmark.sh              # Apache performance benchmarking script
+│   │   ├── extract-openemr.sh        # OpenEMR extraction script
+│   │   ├── run-apache-docker.sh       # Docker-based Apache launcher
+│   │   ├── Dockerfile.docker          # Docker image for Apache setup
+│   │   └── README.md                  # Apache CGI setup instructions
+│   ├── apache_fpm/                   # Apache HTTP Server integration (FPM)
+│   │   ├── httpd-openemr.conf        # Apache virtual host configuration
+│   │   ├── php-fpm.conf              # PHP-FPM configuration
+│   │   ├── setup-apache-config.sh    # Automated Apache configuration script
+│   │   ├── test-fpm-setup.sh         # FPM setup verification script
+│   │   ├── benchmark.sh              # Apache performance benchmarking script
+│   │   ├── extract-openemr.sh        # OpenEMR extraction script
+│   │   ├── run-fpm-docker.sh          # Docker-based FPM launcher
+│   │   ├── run-fpm.sh                 # PHP-FPM launcher script
+│   │   ├── Dockerfile.docker          # Docker image for FPM setup
+│   │   └── README.md                  # Apache FPM setup instructions
 │   └── README.md                     # Linux arm64 build guide
 ├── freebsd/                          # FreeBSD build files
 │   ├── build-freebsd.sh              # FreeBSD build script (uses QEMU)
 │   ├── run-freebsd-vm.sh             # Run OpenEMR in FreeBSD VM (built-in server)
-│   ├── run-freebsd-apache.sh         # Run OpenEMR with Apache in FreeBSD VM
+│   ├── run-freebsd-apache.sh         # Run OpenEMR with Apache in FreeBSD VM (CGI)
+│   ├── run-freebsd-fpm.sh            # Run OpenEMR with Apache + FPM in FreeBSD VM
 │   ├── run-web-server.sh             # Web server for native FreeBSD
 │   ├── router.php                    # Router script for PHP built-in server
 │   ├── php.ini                       # PHP configuration (customizable)
-│   ├── apache/                       # Apache setup scripts and configs
+│   ├── verify-apache-setup.sh        # Apache setup verification script
+│   ├── apache_cgi/                   # Apache HTTP Server integration (CGI)
+│   │   ├── httpd-openemr.conf        # Apache virtual host configuration
+│   │   ├── php-wrapper.sh            # PHP CGI wrapper script template
+│   │   ├── setup-apache-config.sh    # Automated Apache configuration script
+│   │   ├── test-cgi-setup.sh         # CGI setup verification script
+│   │   ├── benchmark.sh              # Apache performance benchmarking script
+│   │   ├── extract-openemr.sh        # OpenEMR extraction script
+│   │   └── README.md                  # Apache CGI setup instructions
+│   ├── apache_fpm/                   # Apache HTTP Server integration (FPM)
+│   │   ├── httpd-openemr.conf        # Apache virtual host configuration
+│   │   ├── php-fpm.conf              # PHP-FPM configuration
+│   │   ├── setup-apache-config.sh    # Automated Apache configuration script
+│   │   ├── test-fpm-setup.sh         # FPM setup verification script
+│   │   ├── benchmark.sh              # Apache performance benchmarking script
+│   │   ├── extract-openemr.sh        # OpenEMR extraction script
+│   │   ├── run-fpm.sh                 # PHP-FPM launcher script
+│   │   └── README.md                  # Apache FPM setup instructions
 │   └── README.md                     # FreeBSD build guide
+├── images/                           # Screenshots and visual assets
+│   └── [various screenshot files]
 └── logo/                             # Project logos
     ├── openemr_static_binary_forge_github_banner.jpg
     └── openemr_static_binary_forge_logo.png
@@ -314,24 +388,55 @@ If npm builds fail:
 
 The build includes these PHP extensions required by OpenEMR:
 
-- bcmath
-- exif
-- gd (with JPEG and PNG support)
-- intl
-- ldap
-- mbstring
-- mysqli
-- opcache
-- openssl
-- pcntl
-- pdo_mysql
-- redis
-- soap
-- sockets
-- zip
-- imagick
+### Core Extensions (macOS, Linux amd64, Linux arm64)
+- **bcmath** - Arbitrary precision mathematics
+- **calendar** - Calendar conversion functions
+- **ctype** - Character type checking
+- **curl** - Client URL library
+- **dom** - DOM manipulation
+- **exif** - Exchangeable image information
+- **fileinfo** - File information detection
+- **filter** - Data filtering
+- **gd** - GD graphics library (with JPEG and PNG support)
+- **imagick** - ImageMagick image processing
+- **intl** - Internationalization functions
+- **ldap** - Lightweight Directory Access Protocol
+- **mbstring** - Multibyte string handling
+- **mysqli** - MySQL improved extension
+- **opcache** - OPcode cache
+- **openssl** - OpenSSL cryptography
+- **pcntl** - Process control
+- **pdo_mysql** - MySQL PDO driver
+- **phar** - PHP Archive
+- **redis** - Redis client
+- **simplexml** - Simple XML parsing
+- **soap** - SOAP client/server
+- **sockets** - Low-level socket functions
+- **tokenizer** - PHP tokenizer
+- **xmlreader** - XML reader
+- **xmlwriter** - XML writer
+- **xsl** - XSLT processing
+- **zip** - ZIP archive handling
 
-**Note**: The build uses PHP (version specified by `PHP_VERSION` environment variable, default: 8.5) with all required extensions statically compiled. Linux builds compile PHP from source, while macOS builds use pre-built PHP sources.
+### Additional Extensions (FreeBSD)
+FreeBSD builds include additional extensions beyond the core set:
+- **ftp** - FTP client
+- **gettext** - Gettext internationalization
+- **hash** - Hash functions
+- **iconv** - Character encoding conversion
+- **json** - JSON support
+- **libxml** - LibXML support
+- **mysqlnd** - MySQL native driver
+- **pdo** - PHP Data Objects
+- **pdo_sqlite** - SQLite PDO driver
+- **posix** - POSIX functions
+- **session** - Session handling
+- **sodium** - Sodium cryptography
+- **sqlite3** - SQLite3 database
+- **xml** - XML parsing
+- **zlib** - Zlib compression
+
+**Note**: The build uses PHP (version specified by `PHP_VERSION` environment variable, default: 8.5) with all required extensions statically compiled. Linux builds compile PHP from source, while macOS builds use pre-built PHP sources. FreeBSD builds compile PHP from source and include a more comprehensive set of extensions.
 
 ## Usage
 
@@ -351,13 +456,18 @@ Each platform includes a web server launcher script:
 | Platform | Command | Notes |
 |----------|---------|-------|
 | **macOS** | `cd mac_os && ./run-web-server.sh [port]` | Uses built-in PHP server |
-| **macOS (Apache)** | `cd mac_os/apache && ./setup-apache-config.sh` | Configures local Apache |
+| **macOS (Apache CGI)** | `cd mac_os/apache_cgi && ./setup-apache-config.sh` | Configures local Apache with CGI |
+| **macOS (Apache FPM)** | `cd mac_os/apache_fpm && ./setup-apache-config.sh` | Configures local Apache with FPM |
 | **Linux (amd64)** | `cd linux_amd64 && ./run-web-server.sh [port]` | Uses Docker Compose |
 | **Linux (amd64 FPM)** | `cd linux_amd64 && ./run-fpm.sh` | Runs FPM binary |
+| **Linux (amd64 Apache CGI)** | `cd linux_amd64/apache_cgi && ./run-apache-docker.sh` | Docker-based Apache with CGI |
+| **Linux (amd64 Apache FPM)** | `cd linux_amd64/apache_fpm && ./run-fpm-docker.sh` | Docker-based Apache with FPM |
 | **Linux (arm64)** | `cd linux_arm64 && ./run-web-server.sh [port]` | Uses Docker Compose |
 | **Linux (arm64 FPM)** | `cd linux_arm64 && ./run-fpm.sh` | Runs FPM binary |
+| **Linux (arm64 Apache CGI)** | `cd linux_arm64/apache_cgi && ./run-apache-docker.sh` | Docker-based Apache with CGI |
+| **Linux (arm64 Apache FPM)** | `cd linux_arm64/apache_fpm && ./run-fpm-docker.sh` | Docker-based Apache with FPM |
 | **FreeBSD (VM)** | `cd freebsd && ./run-freebsd-vm.sh -p [port]` | Uses QEMU + built-in server |
-| **FreeBSD (Apache VM)** | `cd freebsd && ./run-freebsd-apache.sh -p [port]` | Uses QEMU + Apache (CGI) |
+| **FreeBSD (Apache VM CGI)** | `cd freebsd && ./run-freebsd-apache.sh -p [port]` | Uses QEMU + Apache (CGI) |
 | **FreeBSD (FPM VM)** | `cd freebsd && ./run-freebsd-fpm.sh -p [port]` | Uses QEMU + Apache (FPM) |
 | **FreeBSD (Native)** | `cd freebsd && ./run-web-server.sh [port]` | Uses built-in PHP server |
 
