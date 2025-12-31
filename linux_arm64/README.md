@@ -29,7 +29,7 @@ Complete guide for building OpenEMR static binaries for Linux arm64 using Docker
 
 <img src="../images/successful_build_outputs_arm64.png" alt="Files produced by a arm64 build" width="500">
 
-*Files Produced by an amd64 Build*
+*Files Produced by an arm64 Build*
 
 </div>
 
