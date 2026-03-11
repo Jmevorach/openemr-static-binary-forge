@@ -14,8 +14,8 @@
 #                 Example: PHP_VERSION=8.4 ./build-linux.sh
 #
 # Example:
-#   ./build-linux.sh v7_0_4
-#   PHP_VERSION=8.4 ./build-linux.sh v7_0_4
+#   ./build-linux.sh v8_0_0
+#   PHP_VERSION=8.4 ./build-linux.sh v8_0_0
 #
 # Requirements:
 #   - Docker installed and running
@@ -32,7 +32,7 @@
 # to use different versions.
 #
 # OpenEMR Configuration:
-export OPENEMR_VERSION="${OPENEMR_VERSION:-v7_0_4}"
+export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_0_0}"
 #
 # Docker Base Image:
 export DOCKER_BASE_IMAGE="${DOCKER_BASE_IMAGE:-ubuntu:24.04}"
@@ -41,11 +41,11 @@ export DOCKER_BASE_IMAGE="${DOCKER_BASE_IMAGE:-ubuntu:24.04}"
 export PHP_VERSION="${PHP_VERSION:-8.5}"
 #
 # Static PHP CLI (SPC) Configuration:
-# The static-php-cli repository is cloned from GitHub. Pinned to a specific commit
-# for stability. Override STATIC_PHP_CLI_COMMIT to use a different commit.
+# The static-php-cli repository is cloned from GitHub. Pinned to release tag 2.8.2
+# for stability. Override STATIC_PHP_CLI_RELEASE_TAG to use a different version.
 export STATIC_PHP_CLI_REPO="${STATIC_PHP_CLI_REPO:-https://github.com/crazywhalecc/static-php-cli.git}"
 export STATIC_PHP_CLI_BRANCH="${STATIC_PHP_CLI_BRANCH:-main}"
-export STATIC_PHP_CLI_COMMIT="${STATIC_PHP_CLI_COMMIT:-8650ce4f8ff7c61ce47eb80a648b1ea386f0d1c2}"
+export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.8.2}"
 #
 # PHP Extensions (comma-separated list):
 export PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick,filter,curl,dom,fileinfo,simplexml,xmlreader,xmlwriter,xsl,ctype,calendar,tokenizer}"
@@ -242,11 +242,11 @@ cat > "${BUILD_SCRIPT}" << 'BUILD_SCRIPT_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
-OPENEMR_TAG="${1:-v7_0_4}"
+OPENEMR_TAG="${1:-v8_0_0}"
 PHP_VERSION="${2:-8.5}"
 STATIC_PHP_CLI_REPO="${3:-https://github.com/crazywhalecc/static-php-cli.git}"
 STATIC_PHP_CLI_BRANCH="${4:-main}"
-STATIC_PHP_CLI_COMMIT="${5:-}"
+STATIC_PHP_CLI_RELEASE_TAG="${5:-2.8.2}"
 PHP_EXTENSIONS="${6:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick,filter,curl,dom,fileinfo,simplexml,xmlreader,xmlwriter,xsl,ctype,calendar,tokenizer}"
 ARCH="aarch64"
 TARGET_ARCH="arm64"
@@ -446,10 +446,9 @@ while [ ${CLONE_ATTEMPT} -lt ${MAX_CLONE_ATTEMPTS} ] && [ "${CLONE_SUCCESS}" != 
     CLONE_ATTEMPT=$((CLONE_ATTEMPT + 1))
     echo "Clone attempt ${CLONE_ATTEMPT}/${MAX_CLONE_ATTEMPTS}..."
     
-    # Determine clone command based on whether commit or branch is specified
-    if [ -n "${STATIC_PHP_CLI_COMMIT}" ]; then
-        if git clone --depth 1 "${STATIC_PHP_CLI_REPO}" "${SPC_BUILD_DIR}"; then
-            cd "${SPC_BUILD_DIR}" && git checkout "${STATIC_PHP_CLI_COMMIT}" && cd /tmp
+    # Clone at the pinned release tag
+    if [ -n "${STATIC_PHP_CLI_RELEASE_TAG}" ]; then
+        if git clone --depth 1 --branch "${STATIC_PHP_CLI_RELEASE_TAG}" "${STATIC_PHP_CLI_REPO}" "${SPC_BUILD_DIR}"; then
             CLONE_SUCCESS=true
         fi
     elif [ -n "${STATIC_PHP_CLI_BRANCH}" ]; then
@@ -682,7 +681,7 @@ docker run --name "${CONTAINER_NAME}" \
     -v "${OUTPUT_DIR}:/output" \
     -w /build \
     openemr-builder-arm64:latest \
-    bash /build/docker-build-internal.sh "${OPENEMR_TAG}" "${PHP_VERSION}" "${STATIC_PHP_CLI_REPO}" "${STATIC_PHP_CLI_BRANCH}" "${STATIC_PHP_CLI_COMMIT}" "${PHP_EXTENSIONS}" || {
+    bash /build/docker-build-internal.sh "${OPENEMR_TAG}" "${PHP_VERSION}" "${STATIC_PHP_CLI_REPO}" "${STATIC_PHP_CLI_BRANCH}" "${STATIC_PHP_CLI_RELEASE_TAG}" "${PHP_EXTENSIONS}" || {
     echo -e "${RED}ERROR: Docker build failed${NC}"
     echo ""
     echo "Attempting to extract build logs from container..."
