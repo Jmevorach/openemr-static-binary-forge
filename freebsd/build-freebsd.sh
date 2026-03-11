@@ -17,16 +17,16 @@
 #   ./build-freebsd.sh [openemr_version] [freebsd_version]
 #
 # Example:
-#   ./build-freebsd.sh v7_0_4 15.0
+#   ./build-freebsd.sh v8_0_0 15.0
 # ==============================================================================
 
 # ==============================================================================
 # Version Configuration
 # ==============================================================================
-export OPENEMR_VERSION="${OPENEMR_VERSION:-v7_0_4}"
+export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_0_0}"
 export FREEBSD_VERSION="${FREEBSD_VERSION:-15.0}"
 export PHP_VERSION="${PHP_VERSION:-8.5}"
-export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.7.10}"
+export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.8.2}"
 export STATIC_PHP_CLI_REPO="${STATIC_PHP_CLI_REPO:-crazywhalecc/static-php-cli}"
 export PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick,filter,curl,dom,fileinfo,simplexml,xmlreader,xmlwriter,xsl,ctype,calendar,tokenizer}"
 
