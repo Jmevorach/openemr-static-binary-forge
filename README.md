@@ -36,7 +36,7 @@ This project supports building OpenEMR static binaries for four platforms:
 
 **Latest pre-built binaries:**
 - **macOS**: [mac_os-php85-openemr-v8_3_0-arm64-08232026](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/mac_os-php85-openemr-v8_3_0-arm64-08232026)
-- **Linux amd64**: [linux_amd64-php85-openemr-v8_0_0-amd64-03102026](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_amd64-php85-openemr-v8_0_0-amd64-03102026)
+- **Linux amd64**: [linux_amd64-php85-openemr-v8_3_0-amd64-08232026](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_amd64-php85-openemr-v8_3_0-amd64-08232026)
 - **Linux arm64**: [linux_arm64-php85-openemr-v8_0_0-arm64-03102026](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_arm64-php85-openemr-v8_0_0-arm64-03102026)
 - **FreeBSD**: [freebsd15.1-php85-openemr-v8_3_0-arm64-08232026](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/freebsd15.1-php85-openemr-v8_3_0-arm64-08232026)
 
