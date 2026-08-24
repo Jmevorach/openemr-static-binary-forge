@@ -17,25 +17,25 @@
 #   ./build-freebsd.sh [openemr_version] [freebsd_version]
 #
 # Example:
-#   ./build-freebsd.sh v8_0_0 15.0
+#   ./build-freebsd.sh v8_3_0 15.1
 # ==============================================================================
 
 # ==============================================================================
 # Version Configuration
 # ==============================================================================
-export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_0_0}"
-export FREEBSD_VERSION="${FREEBSD_VERSION:-15.0}"
+export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_3_0}"
+export FREEBSD_VERSION="${FREEBSD_VERSION:-15.1}"
 export PHP_VERSION="${PHP_VERSION:-8.5}"
-export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.8.2}"
+export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.8.5}"
 export STATIC_PHP_CLI_REPO="${STATIC_PHP_CLI_REPO:-crazywhalecc/static-php-cli}"
-export PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick,filter,curl,dom,fileinfo,simplexml,xmlreader,xmlwriter,xsl,ctype,calendar,tokenizer}"
+export PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick,filter,curl,dom,fileinfo,simplexml,xmlreader,xmlwriter,xsl,ctype,calendar,tokenizer,iconv,sodium}"
 
 # Build-time dependencies for the VM environment
 export FREEBSD_PHP_PKG="php83"
 export FREEBSD_PHP_EXTENSIONS_PKG="php83-extensions php83-zlib php83-zip"
 export FREEBSD_PHP_COMPOSER_PKG="php83-composer"
-export FREEBSD_NODE_PKG="node22"
-export FREEBSD_NPM_PKG="npm-node22"
+export FREEBSD_NODE_PKG="node24"
+export FREEBSD_NPM_PKG="npm-node24"
 export FREEBSD_IMAGEMAGICK_PKG="ImageMagick7"
 export FREEBSD_GCC_PKG="gcc13"
 export FREEBSD_PYTHON_PKG="python311"
@@ -72,7 +72,7 @@ while [[ $# -gt 0 ]]; do
         -h|--help) echo "Usage: $0 [openemr_version] [freebsd_version] [php_version] [--debug]"; exit 0 ;;
         *)
             if [[ -z "${OPENEMR_TAG:-}" || "${OPENEMR_TAG}" == "${OPENEMR_VERSION}" ]]; then OPENEMR_TAG="$1"
-            elif [[ "${FREEBSD_VERSION}" == "15.0" ]]; then FREEBSD_VERSION="$1"
+            elif [[ "${FREEBSD_VERSION}" == "15.1" ]]; then FREEBSD_VERSION="$1"
             else PHP_VERSION="$1"; fi
             shift
             ;;
@@ -188,6 +188,8 @@ export FREEBSD_NPM_PKG='${FREEBSD_NPM_PKG}'
 export FREEBSD_IMAGEMAGICK_PKG='${FREEBSD_IMAGEMAGICK_PKG}'
 export FREEBSD_GCC_PKG='${FREEBSD_GCC_PKG}'
 export FREEBSD_PYTHON_PKG='${FREEBSD_PYTHON_PKG}'
+export NODE_OPTIONS="--max-old-space-size=$((VM_RAM_GB * 512))"
+export COMPOSER_MEMORY_LIMIT=4G
 ENVFILE
 
 cat > "${SHARED_DIR}/freebsd-build.sh" << 'FREEBUILD'
@@ -261,21 +263,32 @@ composer install --ignore-platform-reqs --no-dev --optimize-autoloader --prefer-
 
 if [ -f "package.json" ]; then
     echo -e "${YELLOW}Running npm build...${NC}"
+    export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}"
     npm install -g napa gulp-cli 2>&1 | tee /build/npm-install-global.log
     (npm ci || npm install) 2>&1 | tee /build/npm-install.log
-    # Filter Sass warnings aggressively to prevent serial console overflow.
-    (npm run build 2>&1 | grep -Ei "Starting|Finished|Error|fatal" || true) | tee /build/npm-build.log
+    # Filter Sass warnings to keep the serial console usable, but fail on a real npm error.
+    set +e
+    npm run build > /tmp/npm-build-full.log 2>&1
+    NPM_RC=$?
+    set -e
+    grep -Ei "Starting|Finished|Error|fatal|heap out of memory" /tmp/npm-build-full.log | tee /build/npm-build.log || true
+    if [ "${NPM_RC}" -ne 0 ]; then
+        echo -e "${RED}npm build failed (exit ${NPM_RC})${NC}"
+        tail -30 /tmp/npm-build-full.log
+        exit 1
+    fi
 fi
 
 cat > /build/create-phar.php << 'PHARBUILD'
 <?php
+ini_set('memory_limit', '2048M');
 ini_set('phar.readonly', '0');
 $phar = new Phar($argv[1]);
 $phar->buildFromDirectory($argv[2]);
 $phar->setStub($phar->createDefaultStub('interface/main/main.php'));
 $phar->compressFiles(Phar::GZ);
 PHARBUILD
-php -d phar.readonly=0 /build/create-phar.php /build/openemr.phar /build/openemr-phar
+php -d memory_limit=2048M -d phar.readonly=0 /build/create-phar.php /build/openemr.phar /build/openemr-phar
 
 # 2. Build PHP from Source
 echo -e "${YELLOW}Building PHP ${PHP_VERSION} from source...${NC}"
@@ -326,6 +339,7 @@ export LIBS="-lm -lpthread -lstdc++ -lintl -liconv -lz"
     --with-mysqli=mysqlnd \
     --with-openssl=/usr/local \
     --with-pdo-mysql=mysqlnd \
+    --with-iconv=/usr/local \
     --with-sodium=/usr/local \
     --with-xsl=/usr/local \
     --with-zip \

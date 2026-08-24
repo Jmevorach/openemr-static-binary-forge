@@ -32,7 +32,13 @@ This project supports building OpenEMR static binaries for four platforms:
 - **Linux (arm64)** - See [Linux arm64 Build Guide](linux_arm64/README.md)
 - **FreeBSD** (arm64/aarch64) - See [FreeBSD Build Guide](freebsd/README.md)
 
-**Note**: All platforms have been verified with OpenEMR v7.0.4 and PHP 8.5.
+**Note**: The macOS and FreeBSD builds default to OpenEMR v8.3.0 and PHP 8.5. Linux builds currently default to OpenEMR v8.0.0 and PHP 8.5. The FreeBSD VM image defaults to FreeBSD 15.1.
+
+**Latest pre-built binaries:**
+- **macOS**: [mac_os-php85-openemr-v8_3_0-arm64-08232026](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/mac_os-php85-openemr-v8_3_0-arm64-08232026)
+- **Linux amd64**: [linux_amd64-php85-openemr-v8_0_0-amd64-03102026](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_amd64-php85-openemr-v8_0_0-amd64-03102026)
+- **Linux arm64**: [linux_arm64-php85-openemr-v8_0_0-arm64-03102026](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_arm64-php85-openemr-v8_0_0-arm64-03102026)
+- **FreeBSD**: [freebsd15.1-php85-openemr-v8_3_0-arm64-08232026](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/freebsd15.1-php85-openemr-v8_3_0-arm64-08232026)
 
 Each platform has its own build directory with platform-specific build scripts and documentation.
 

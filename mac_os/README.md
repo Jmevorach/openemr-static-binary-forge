@@ -42,9 +42,9 @@ Complete guide for building OpenEMR static binaries on macOS using Static PHP CL
 
 ## Pre-built Binaries
 
-If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/mac_os-php85-openemr-v7_0_4-arm64-12292025).
+If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/mac_os-php85-openemr-v8_3_0-arm64-08232026).
 
-**Latest Release**: [mac_os-php85-openemr-v7_0_4-arm64-12292025](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/mac_os-php85-openemr-v7_0_4-arm64-12292025)
+**Latest Release**: [mac_os-php85-openemr-v8_3_0-arm64-08232026](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/mac_os-php85-openemr-v8_3_0-arm64-08232026)
 
 To use a pre-built binary:
 1. Download the release assets to the `mac_os` directory
@@ -64,7 +64,7 @@ To use a pre-built binary:
 - **PHP**: For creating PHAR archives (can be installed via Homebrew)
 - **Homebrew**: Recommended package manager for macOS
 - **Composer**: For installing PHP dependencies
-- **Node.js & npm**: For building frontend assets
+- **Node.js & npm**: For building frontend assets (Node.js 24+ is required for OpenEMR 8.3.0)
 
 ## Quick Start
 
@@ -84,7 +84,8 @@ xcode-select --install
 brew install php
 
 # Install optional but recommended tools
-brew install composer node
+# OpenEMR 8.3.0 requires Node.js 24+
+brew install composer node@24
 ```
 
 ### 2. Install System Libraries for PHP Extensions
@@ -111,12 +112,12 @@ cd mac_os
 ./build-macos.sh [openemr_version]
 ```
 
-For example, to build OpenEMR version 7.0.4:
+For example, to build OpenEMR version 8.3.0:
 ```bash
-./build-macos.sh v7_0_4
+./build-macos.sh v8_3_0
 ```
 
-If no version is specified, it defaults to `v7_0_4`.
+If no version is specified, it defaults to `v8_3_0`.
 
 The script will display detected system resources and optimization settings before building.
 
@@ -124,15 +125,15 @@ The script will display detected system resources and optimization settings befo
 
 After a successful build, the following binaries will be created:
 ```
-mac_os/openemr-v7_0_4-macos-arm64        # Combined binary (Apple Silicon)
-mac_os/openemr-v7_0_4-macos-x86_64       # Combined binary (Intel)
-mac_os/php-cli-v7_0_4-macos-arm64        # PHP CLI binary (Apple Silicon)
-mac_os/php-cli-v7_0_4-macos-x86_64       # PHP CLI binary (Intel)
-mac_os/php-cgi-v7_0_4-macos-arm64        # PHP CGI binary (Apple Silicon)
-mac_os/php-cgi-v7_0_4-macos-x86_64       # PHP CGI binary (Intel)
-mac_os/php-fpm-v7_0_4-macos-arm64        # PHP FPM binary (Apple Silicon)
-mac_os/php-fpm-v7_0_4-macos-x86_64       # PHP FPM binary (Intel)
-mac_os/openemr-v7_0_4.phar               # OpenEMR PHAR archive
+mac_os/openemr-v8_3_0-macos-arm64        # Combined binary (Apple Silicon)
+mac_os/openemr-v8_3_0-macos-x86_64       # Combined binary (Intel)
+mac_os/php-cli-v8_3_0-macos-arm64        # PHP CLI binary (Apple Silicon)
+mac_os/php-cli-v8_3_0-macos-x86_64       # PHP CLI binary (Intel)
+mac_os/php-cgi-v8_3_0-macos-arm64        # PHP CGI binary (Apple Silicon)
+mac_os/php-cgi-v8_3_0-macos-x86_64       # PHP CGI binary (Intel)
+mac_os/php-fpm-v8_3_0-macos-arm64        # PHP FPM binary (Apple Silicon)
+mac_os/php-fpm-v8_3_0-macos-x86_64       # PHP FPM binary (Intel)
+mac_os/openemr-v8_3_0.phar               # OpenEMR PHAR archive
 ```
 
 #### Using the Binary
@@ -454,6 +455,8 @@ The build includes these PHP extensions required by OpenEMR:
 - sockets
 - zip
 - imagick
+- iconv
+- sodium
 
 **Note**: The build uses PHP 8.5 with all required extensions statically compiled.
 

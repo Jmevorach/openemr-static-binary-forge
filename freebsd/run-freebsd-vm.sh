@@ -10,7 +10,7 @@
 #
 # Options:
 #   -p, --port PORT      Host port to access OpenEMR (default: 8080)
-#   -v, --version VER    FreeBSD version (default: 15.0)
+#   -v, --version VER    FreeBSD version (default: 15.1)
 #   -m, --memory MEM     VM memory in GB (default: 4)
 #   -c, --cpus CPUS      Number of CPU cores (default: 2)
 #   -h, --help           Show this help message
@@ -41,7 +41,7 @@ PROJECT_ROOT="$( cd "${SCRIPT_DIR}/.." && pwd )"
 
 # Default arguments
 HOST_PORT="8080"
-FREEBSD_VERSION="15.0"
+FREEBSD_VERSION="15.1"
 VM_MEMORY="4"
 VM_CPUS="2"
 FORCE_FRESH="false"
@@ -74,7 +74,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  -p, --port PORT      Host port to access OpenEMR (default: 8080)"
-            echo "  -v, --version VER    FreeBSD version (default: 15.0)"
+            echo "  -v, --version VER    FreeBSD version (default: 15.1)"
             echo "  -m, --memory MEM     VM memory in GB (default: 4)"
             echo "  -c, --cpus CPUS      Number of CPU cores (default: 2)"
             echo "  --fresh              Force fresh VM image download"
@@ -208,7 +208,7 @@ VM_TMP_DIR=$(mktemp -d)
 echo "Using temporary VM directory: ${VM_TMP_DIR}"
 
 # Determine the correct image name based on FreeBSD version and architecture
-# FreeBSD 15.0+ uses "arm64-aarch64" format for ARM images
+# FreeBSD 15.1+ uses "arm64-aarch64" format for ARM images
 if [[ "${FREEBSD_ARCH}" == "aarch64" ]]; then
     VM_IMAGE_NAME="FreeBSD-${FREEBSD_VERSION}-RELEASE-arm64-aarch64-ufs.qcow2"
 else

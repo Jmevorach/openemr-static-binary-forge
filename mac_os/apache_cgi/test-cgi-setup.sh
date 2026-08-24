@@ -7,7 +7,8 @@ set -e
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 MAC_OS_DIR="$( cd "${SCRIPT_DIR}/.." && pwd )"
 ARCH=$(uname -m)
-PHP_CGI="${MAC_OS_DIR}/php-cgi-v7_0_4-macos-${ARCH}"
+OPENEMR_PATH="${MAC_OS_DIR}/openemr-extracted"
+PHP_CGI=$(find "${MAC_OS_DIR}" -maxdepth 1 -type f -name "php-cgi-*-macos-*" -perm +111 2>/dev/null | head -1)
 WRAPPER="${OPENEMR_PATH}/cgi-bin/php-wrapper.cgi"
 
 echo "=========================================="
@@ -17,7 +18,7 @@ echo ""
 
 # Test 1: PHP CGI binary
 echo "1. Testing PHP CGI binary..."
-if [ -f "${PHP_CGI}" ] && [ -x "${PHP_CGI}" ]; then
+if [ -n "${PHP_CGI}" ] && [ -x "${PHP_CGI}" ]; then
     VERSION=$("${PHP_CGI}" --version 2>&1 | head -1)
     echo "   ✓ PHP CGI binary exists and is executable"
     echo "   Version: ${VERSION}"

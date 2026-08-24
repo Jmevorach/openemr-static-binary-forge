@@ -9,7 +9,7 @@
 #   ./build-macos.sh [openemr_version]
 #
 # Example:
-#   ./build-macos.sh v8_0_0
+#   ./build-macos.sh v8_3_0
 #
 # Requirements:
 #   - macOS (Darwin)
@@ -27,19 +27,19 @@
 # to use different versions.
 #
 # OpenEMR Configuration:
-export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_0_0}"
+export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_3_0}"
 #
 # PHP Configuration:
 export PHP_VERSION="${PHP_VERSION:-8.5}"
 #
 # Static PHP CLI (SPC) Configuration:
 # The static-php-cli is downloaded as a pre-built release from GitHub.
-# Using latest release 2.8.2. Override to use a different release.
-export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.8.2}"
+# Using latest release 2.8.5. Override to use a different release.
+export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.8.5}"
 export STATIC_PHP_CLI_REPO="${STATIC_PHP_CLI_REPO:-crazywhalecc/static-php-cli}"
 #
 # PHP Extensions (comma-separated list):
-export PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick,filter,curl,dom,fileinfo,simplexml,xmlreader,xmlwriter,xsl,ctype,calendar,tokenizer}"
+export PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick,filter,curl,dom,fileinfo,simplexml,xmlreader,xmlwriter,xsl,ctype,calendar,tokenizer,iconv,sodium}"
 # ==============================================================================
 
 set -euo pipefail
@@ -451,7 +451,7 @@ fi
 SPC_RELEASE="spc-${SPC_OS}-${SPC_ARCH}.tar.gz"
 
 # Download URL for pinned Static PHP CLI version
-# Version is pinned to ${STATIC_PHP_CLI_RELEASE_TAG} (default: 2.8.2) for stability
+# Version is pinned to ${STATIC_PHP_CLI_RELEASE_TAG} (default: 2.8.5) for stability
 # Override by setting STATIC_PHP_CLI_RELEASE_TAG environment variable before running the script
 SPC_URL="https://github.com/${STATIC_PHP_CLI_REPO}/releases/download/${STATIC_PHP_CLI_RELEASE_TAG}/${SPC_RELEASE}"
 echo "Downloading Static PHP CLI ${STATIC_PHP_CLI_RELEASE_TAG} for ${SPC_OS}-${SPC_ARCH}..."

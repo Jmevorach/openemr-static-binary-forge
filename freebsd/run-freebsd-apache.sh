@@ -10,7 +10,7 @@
 #
 # Options:
 #   -p, --port PORT      Host port to access OpenEMR (default: 8080)
-#   -v, --version VER    FreeBSD version (default: 15.0)
+#   -v, --version VER    FreeBSD version (default: 15.1)
 #   -m, --memory MEM     VM memory in GB (default: 8)
 #   -c, --cpus CPUS      Number of CPU cores (default: 4)
 #   --debug              Enable debug logging
@@ -36,7 +36,7 @@ APACHE_SRC_DIR="${SCRIPT_DIR}/apache"
 
 # Default arguments
 HOST_PORT="8080"
-FREEBSD_VERSION="15.0"
+FREEBSD_VERSION="15.1"
 VM_MEM="8G"
 VM_CPUS="4"
 DEBUG="false"
@@ -54,7 +54,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  -p, --port PORT      Host port to access OpenEMR (default: 8080)"
-            echo "  -v, --version VER    FreeBSD version (default: 15.0)"
+            echo "  -v, --version VER    FreeBSD version (default: 15.1)"
             echo "  -m, --memory MEM     VM memory in GB (default: 8)"
             echo "  -c, --cpus CPUS      Number of CPU cores (default: 4)"
             echo "  --debug              Enable debug logging"
@@ -108,8 +108,8 @@ fi
 VM_DIR="${SCRIPT_DIR}/vm"
 mkdir -p "${VM_DIR}"
 VM_IMAGE_NAME="FreeBSD-${FREEBSD_VERSION}-RELEASE-${FREEBSD_ARCH}-ufs.qcow2"
-if [ "${FREEBSD_ARCH}" = "aarch64" ] && [[ "${FREEBSD_VERSION}" == "15.0" ]]; then
-    VM_IMAGE_NAME="FreeBSD-15.0-RELEASE-arm64-aarch64-ufs.qcow2"
+if [ "${FREEBSD_ARCH}" = "aarch64" ]; then
+    VM_IMAGE_NAME="FreeBSD-${FREEBSD_VERSION}-RELEASE-arm64-aarch64-ufs.qcow2"
 fi
 VM_IMAGE_PATH="${VM_DIR}/${VM_IMAGE_NAME}"
 
@@ -268,8 +268,8 @@ send_cmd "mkdir -p /verify && cd /verify"
 send_cmd "rm -rf bin lib openemr.phar artifacts.tar.gz openemr-extracted"
 send_cmd "fetch -o artifacts.tar.gz http://10.0.2.2:$http_port/$dist_artifact"
 send_cmd "tar -xzf artifacts.tar.gz --strip-components=1"
-send_cmd "cp bin/php php-cli-v7_0_4-freebsd-$arch"
-send_cmd "cp bin/php-cgi php-cgi-v7_0_4-freebsd-$arch"
+send_cmd "cp bin/php php-cli-v8_3_0-freebsd-$arch"
+send_cmd "cp bin/php-cgi php-cgi-v8_3_0-freebsd-$arch"
 send_cmd "chmod +x php-*-freebsd-*"
 send_cmd "mkdir -p apache"
 send_cmd "for f in benchmark.sh extract-openemr.sh httpd-openemr.conf php-wrapper.sh README.md setup-apache-config.sh test-cgi-setup.sh; do fetch -o apache/\$f http://10.0.2.2:$http_port/apache/\$f; done"

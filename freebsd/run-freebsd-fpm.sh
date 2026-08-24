@@ -28,7 +28,7 @@ APACHE_FPM_DIR="${SCRIPT_DIR}/apache_fpm"
 
 # Default arguments
 HOST_PORT="8081"
-FREEBSD_VERSION="15.0"
+FREEBSD_VERSION="15.1"
 VM_MEM="8G"
 VM_CPUS="4"
 DEBUG="false"
@@ -46,7 +46,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  -p, --port PORT      Host port to access OpenEMR (default: 8081)"
-            echo "  -v, --version VER    FreeBSD version (default: 15.0)"
+            echo "  -v, --version VER    FreeBSD version (default: 15.1)"
             echo "  -m, --memory MEM     VM memory in GB (default: 8)"
             echo "  -c, --cpus CPUS      Number of CPU cores (default: 4)"
             echo "  --debug              Enable debug logging"
@@ -100,8 +100,8 @@ fi
 VM_DIR="${SCRIPT_DIR}/vm"
 mkdir -p "${VM_DIR}"
 VM_IMAGE_NAME="FreeBSD-${FREEBSD_VERSION}-RELEASE-${FREEBSD_ARCH}-ufs.qcow2"
-if [ "${FREEBSD_ARCH}" = "aarch64" ] && [[ "${FREEBSD_VERSION}" == "15.0" ]]; then
-    VM_IMAGE_NAME="FreeBSD-15.0-RELEASE-arm64-aarch64-ufs.qcow2"
+if [ "${FREEBSD_ARCH}" = "aarch64" ]; then
+    VM_IMAGE_NAME="FreeBSD-${FREEBSD_VERSION}-RELEASE-arm64-aarch64-ufs.qcow2"
 fi
 VM_IMAGE_PATH="${VM_DIR}/${VM_IMAGE_NAME}"
 

@@ -25,7 +25,7 @@ NC='\033[0m'
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "${SCRIPT_DIR}/.." && pwd )"
 DIST_DIR="${SCRIPT_DIR}/dist"
-FREEBSD_VERSION="${FREEBSD_VERSION:-15.0}"
+FREEBSD_VERSION="${FREEBSD_VERSION:-15.1}"
 
 # Find a free port for the web server
 find_free_port() {
@@ -229,8 +229,8 @@ send_cmd "mkdir -p /verify && cd /verify"
 send_cmd "fetch -o artifacts.tar.gz http://10.0.2.2:$http_port/$dist_artifact"
 send_cmd "tar -xzf artifacts.tar.gz"
 send_cmd "mv openemr-*-freebsd-*/* ."
-send_cmd "cp bin/php php-cli-v7_0_4-freebsd-$arch"
-send_cmd "cp bin/php-cgi php-cgi-v7_0_4-freebsd-$arch"
+send_cmd "cp bin/php php-cli-v8_3_0-freebsd-$arch"
+send_cmd "cp bin/php-cgi php-cgi-v8_3_0-freebsd-$arch"
 send_cmd "chmod +x php-*-freebsd-*"
 send_cmd "export LD_LIBRARY_PATH=/verify/lib:/usr/local/lib"
 send_cmd "mkdir -p apache"
