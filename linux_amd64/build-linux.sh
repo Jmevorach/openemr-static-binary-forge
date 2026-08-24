@@ -223,21 +223,26 @@ RUN cd /tmp && \\
 WORKDIR /build
 DOCKERFILE_EOF
 
-echo "Building Docker image for Linux amd64 build..."
-echo "Using PHP version: ${PHP_VERSION}"
-echo "Using base image: ${DOCKER_BASE_IMAGE}"
-docker build --platform linux/amd64 \
-    --build-arg DOCKER_BASE_IMAGE="${DOCKER_BASE_IMAGE}" \
-    --build-arg PHP_VERSION_MAJOR_MINOR="${PHP_VERSION}" \
-    -t openemr-builder-amd64:latest \
-    -f "${DOCKERFILE}" \
-    "${SCRIPT_DIR}" || {
-    echo -e "${RED}ERROR: Failed to build Docker image${NC}"
-    exit 1
-}
+if docker image inspect openemr-builder-amd64:latest >/dev/null 2>&1; then
+    echo -e "${GREEN}✓ Reusing existing Docker image openemr-builder-amd64:latest${NC}"
+    echo ""
+else
+    echo "Building Docker image for Linux amd64 build..."
+    echo "Using PHP version: ${PHP_VERSION}"
+    echo "Using base image: ${DOCKER_BASE_IMAGE}"
+    docker build --platform linux/amd64 \
+        --build-arg DOCKER_BASE_IMAGE="${DOCKER_BASE_IMAGE}" \
+        --build-arg PHP_VERSION_MAJOR_MINOR="${PHP_VERSION}" \
+        -t openemr-builder-amd64:latest \
+        -f "${DOCKERFILE}" \
+        "${SCRIPT_DIR}" || {
+        echo -e "${RED}ERROR: Failed to build Docker image${NC}"
+        exit 1
+    }
 
-echo -e "${GREEN}✓ Docker image built${NC}"
-echo ""
+    echo -e "${GREEN}✓ Docker image built${NC}"
+    echo ""
+fi
 
 # Create build script that will run inside Docker
 BUILD_SCRIPT="${SCRIPT_DIR}/docker-build-internal.sh"
@@ -290,133 +295,224 @@ echo "Step 1/5: Preparing OpenEMR application..."
 OPENEMR_DIR="/build/openemr-source"
 PHAR_FILE="/build/openemr.phar"
 
-# Clean up any leftover files from previous builds
-echo "Cleaning up any previous build artifacts..."
-rm -rf /build/openemr-source /build/openemr-phar /build/openemr.phar 2>/dev/null || true
+# Reuse a completed composer+npm tree on the host bind mount. A full
+# QEMU reinstall of google/apiclient-services + webpack is very expensive.
+if [ -f /build/openemr-phar/vendor/autoload.php ] \
+    && [ -f /build/openemr-phar/oauth2/authorize.php ] \
+    && [ -f /build/openemr-phar/public/themes/style_light.css ]; then
+    echo "Reusing existing OpenEMR staging tree (vendor + compiled frontend already present)"
+    cd /build/openemr-phar
+else
+    echo "Cleaning up any previous build artifacts..."
+    rm -rf /build/openemr-source /build/openemr-phar /build/openemr.phar 2>/dev/null || true
 
-echo "Cloning OpenEMR ${OPENEMR_TAG}..."
-MAX_RETRIES=3
-RETRY_COUNT=0
-while [ ${RETRY_COUNT} -lt ${MAX_RETRIES} ]; do
-    if git clone --depth 1 --branch "${OPENEMR_TAG}" https://github.com/openemr/openemr.git openemr-source; then
-        break
-    fi
-    RETRY_COUNT=$((RETRY_COUNT + 1))
-    if [ ${RETRY_COUNT} -lt ${MAX_RETRIES} ]; then
-        echo "Clone attempt ${RETRY_COUNT} failed. Retrying in 5 seconds..."
-        sleep 5
-        rm -rf openemr-source 2>/dev/null || true
-    else
-        echo "ERROR: Failed to clone OpenEMR after ${MAX_RETRIES} attempts"
-        exit 1
-    fi
-done
+    echo "Cloning OpenEMR ${OPENEMR_TAG}..."
+    MAX_RETRIES=3
+    RETRY_COUNT=0
+    while [ ${RETRY_COUNT} -lt ${MAX_RETRIES} ]; do
+        if git clone --depth 1 --branch "${OPENEMR_TAG}" https://github.com/openemr/openemr.git openemr-source; then
+            break
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        if [ ${RETRY_COUNT} -lt ${MAX_RETRIES} ]; then
+            echo "Clone attempt ${RETRY_COUNT} failed. Retrying in 5 seconds..."
+            sleep 5
+            rm -rf openemr-source 2>/dev/null || true
+        else
+            echo "ERROR: Failed to clone OpenEMR after ${MAX_RETRIES} attempts"
+            exit 1
+        fi
+    done
 
-cd openemr-source
-mkdir -p /build/openemr-phar
-git archive HEAD | tar -x -C /build/openemr-phar
-cd /build/openemr-phar
+    cd openemr-source
+    mkdir -p /build/openemr-phar
+    git archive HEAD | tar -x -C /build/openemr-phar
+    cd /build/openemr-phar
 
-rm -rf .git tests/ .github/ docs/ 2>/dev/null || true
+    rm -rf .git tests/ .github/ docs/ 2>/dev/null || true
 
-echo "Installing production dependencies..."
-if [ -f "composer.json" ] && command -v composer >/dev/null 2>&1; then
-    COMPOSER_MEMORY_LIMIT="${COMPOSER_MEMORY_LIMIT}" \
-    COMPOSER_PROCESS_TIMEOUT=0 \
-    composer install \
-        --ignore-platform-reqs \
-        --no-dev \
-        --optimize-autoloader \
-        --prefer-dist \
-        --no-interaction \
-        2>&1 | grep -v "^#" || true
-fi
-
-# Build frontend assets if needed
-if [ -f "package.json" ] && command -v npm >/dev/null 2>&1; then
-    echo "Building frontend assets..."
-    
-    # Make npm fully non-interactive
-    export npm_config_yes=true
-    export npm_config_loglevel=warn
-    export CI=true
-    
-    # Install global dependencies needed by OpenEMR's postinstall scripts
-    echo "Installing global npm dependencies (napa, gulp-cli)..."
-    npm install -g --yes napa gulp-cli 2>&1 || {
-        echo "WARNING: Failed to install global npm deps"
-        echo "Continuing anyway..."
-    }
-    
-    # Install npm dependencies (WITHOUT --production flag to get devDependencies needed for building)
-    echo "Installing npm dependencies (including devDependencies for build tools)..."
-    NODE_OPTIONS="--max-old-space-size=$((TOTAL_RAM_GB * 512))" npm ci 2>&1 || {
-        echo "WARNING: npm ci had issues, trying npm install as fallback..."
-        NODE_OPTIONS="--max-old-space-size=$((TOTAL_RAM_GB * 512))" npm install 2>&1 || {
-            echo "WARNING: npm install also had issues, but continuing..."
-        }
-    }
-    
-    # Run build command to compile CSS/JS assets
-    # OpenEMR uses Gulp via npm run build to compile CSS and JavaScript
-    echo "Building frontend assets with npm run build (runs Gulp)..."
-    BUILD_SUCCESS=false
-    
-    # OpenEMR uses 'npm run build' which triggers Gulp to compile assets
-    if npm run | grep -q "^  build" || grep -q '"build"' package.json 2>/dev/null; then
-        echo "Running npm run build to compile CSS and JavaScript assets..."
-        NODE_OPTIONS="--max-old-space-size=$((TOTAL_RAM_GB * 512))" npm run build 2>&1 && {
-            BUILD_SUCCESS=true
-            echo "✓ Frontend assets built successfully (CSS and JavaScript compiled)"
-        } || {
-            echo "WARNING: npm run build had issues"
-        }
-    else
-        # Fallback: try gulp directly if npm run build doesn't exist
-        if command -v gulp >/dev/null 2>&1 && ([ -f "gulpfile.js" ] || [ -f "Gulpfile.js" ]); then
-            echo "Running gulp directly to build frontend assets..."
-            NODE_OPTIONS="--max-old-space-size=$((TOTAL_RAM_GB * 512))" gulp 2>&1 && {
-                BUILD_SUCCESS=true
-                echo "✓ Gulp build completed successfully"
-            } || {
-                echo "WARNING: gulp build had issues"
-            }
+    echo "Installing production dependencies..."
+    if [ -f "composer.json" ] && command -v composer >/dev/null 2>&1; then
+        COMPOSER_OK=false
+        COMPOSER_ATTEMPT=0
+        COMPOSER_MAX_ATTEMPTS=3
+        while [ ${COMPOSER_ATTEMPT} -lt ${COMPOSER_MAX_ATTEMPTS} ]; do
+            COMPOSER_ATTEMPT=$((COMPOSER_ATTEMPT + 1))
+            echo "Composer install attempt ${COMPOSER_ATTEMPT}/${COMPOSER_MAX_ATTEMPTS}..."
+            if COMPOSER_MEMORY_LIMIT="${COMPOSER_MEMORY_LIMIT}" \
+                COMPOSER_PROCESS_TIMEOUT=0 \
+                composer install \
+                    --ignore-platform-reqs \
+                    --no-dev \
+                    --optimize-autoloader \
+                    --prefer-dist \
+                    --no-interaction; then
+                COMPOSER_OK=true
+                break
+            fi
+            echo "Composer install failed (network timeouts are common under QEMU)"
+            if [ ${COMPOSER_ATTEMPT} -lt ${COMPOSER_MAX_ATTEMPTS} ]; then
+                sleep $((COMPOSER_ATTEMPT * 15))
+            fi
+        done
+        if [ "${COMPOSER_OK}" != "true" ]; then
+            echo "ERROR: composer install failed after ${COMPOSER_MAX_ATTEMPTS} attempts"
+            exit 1
         fi
     fi
-    
-    if [ "${BUILD_SUCCESS}" != "true" ]; then
-        echo "ERROR: Frontend build failed!"
-        echo "CSS and JavaScript assets were NOT compiled."
-        echo "OpenEMR will not have working styles or JavaScript."
-        echo ""
-        echo "This is a critical issue. Please check:"
-        echo "  - Node.js and npm are properly installed"
-        echo "  - All npm dependencies installed correctly"
-        echo "  - gulp-cli is installed globally"
-        exit 1
+
+    # Build frontend assets if needed
+    if [ -f "package.json" ] && command -v npm >/dev/null 2>&1; then
+        echo "Building frontend assets..."
+
+        # Make npm fully non-interactive
+        export npm_config_yes=true
+        export npm_config_loglevel=warn
+        export CI=true
+
+        # Install global dependencies needed by OpenEMR's postinstall scripts
+        echo "Installing global npm dependencies (napa, gulp-cli)..."
+        npm install -g --yes napa gulp-cli 2>&1 || {
+            echo "WARNING: Failed to install global npm deps"
+            echo "Continuing anyway..."
+        }
+
+        # Install npm dependencies (WITHOUT --production flag to get devDependencies needed for building)
+        echo "Installing npm dependencies (including devDependencies for build tools)..."
+        NODE_OPTIONS="--max-old-space-size=$((TOTAL_RAM_GB * 512))" npm ci 2>&1 || {
+            echo "WARNING: npm ci had issues, trying npm install as fallback..."
+            NODE_OPTIONS="--max-old-space-size=$((TOTAL_RAM_GB * 512))" npm install 2>&1 || {
+                echo "WARNING: npm install also had issues, but continuing..."
+            }
+        }
+
+        # Run build command to compile CSS/JS assets
+        # OpenEMR uses Gulp via npm run build to compile CSS and JavaScript
+        echo "Building frontend assets with npm run build (runs Gulp)..."
+        BUILD_SUCCESS=false
+
+        # OpenEMR uses 'npm run build' which triggers Gulp to compile assets
+        if npm run | grep -q "^  build" || grep -q '"build"' package.json 2>/dev/null; then
+            echo "Running npm run build to compile CSS and JavaScript assets..."
+            NODE_OPTIONS="--max-old-space-size=$((TOTAL_RAM_GB * 512))" npm run build 2>&1 && {
+                BUILD_SUCCESS=true
+                echo "✓ Frontend assets built successfully (CSS and JavaScript compiled)"
+            } || {
+                echo "WARNING: npm run build had issues"
+            }
+        else
+            # Fallback: try gulp directly if npm run build doesn't exist
+            if command -v gulp >/dev/null 2>&1 && ([ -f "gulpfile.js" ] || [ -f "Gulpfile.js" ]); then
+                echo "Running gulp directly to build frontend assets..."
+                NODE_OPTIONS="--max-old-space-size=$((TOTAL_RAM_GB * 512))" gulp 2>&1 && {
+                    BUILD_SUCCESS=true
+                    echo "✓ Gulp build completed successfully"
+                } || {
+                    echo "WARNING: gulp build had issues"
+                }
+            fi
+        fi
+
+        if [ "${BUILD_SUCCESS}" != "true" ]; then
+            echo "ERROR: Frontend build failed!"
+            echo "CSS and JavaScript assets were NOT compiled."
+            echo "OpenEMR will not have working styles or JavaScript."
+            echo ""
+            echo "This is a critical issue. Please check:"
+            echo "  - Node.js and npm are properly installed"
+            echo "  - All npm dependencies installed correctly"
+            echo "  - gulp-cli is installed globally"
+            exit 1
+        fi
+
+        echo "Frontend build step completed successfully."
     fi
-    
-    echo "Frontend build step completed successfully."
 fi
 
 echo "Creating PHAR archive..."
+# Pack from a container-local copy. QEMU amd64 + Docker Desktop virtiofs
+# can throw ENOENT from RecursiveDirectoryIterator on listed dirs (oauth2).
+# Also drop node_modules / webpack cache; they are not needed at runtime.
+PACK_DIR="/var/tmp/openemr-phar-pack"
+rm -rf "${PACK_DIR}"
+mkdir -p "${PACK_DIR}"
+tar -C /build/openemr-phar \
+    --exclude=node_modules \
+    --exclude=.webpack-cache \
+    --exclude=.git \
+    -cf - . | tar -C "${PACK_DIR}" -xf -
+if [ ! -f "${PACK_DIR}/oauth2/authorize.php" ]; then
+    echo "ERROR: oauth2/authorize.php missing from PHAR staging copy"
+    exit 1
+fi
+
 cat > /build/create-phar.php << 'PHARBUILDER'
 <?php
 ini_set('memory_limit', '2048M');
 ini_set('phar.readonly', '0');
 $pharFile = $argv[1];
-$sourceDir = $argv[2];
+$sourceDir = rtrim($argv[2], '/');
 if (file_exists($pharFile)) {
     unlink($pharFile);
 }
+
+$skipNames = ['node_modules' => true, '.webpack-cache' => true, '.git' => true];
+
+final class TolerantRecursiveDirectoryIterator extends RecursiveDirectoryIterator
+{
+    public function hasChildren(bool $allowLinks = false): bool
+    {
+        if (!parent::hasChildren($allowLinks)) {
+            return false;
+        }
+        $path = $this->getPathname();
+        if (is_link($path) || !is_dir($path)) {
+            return false;
+        }
+        $dh = @opendir($path);
+        if ($dh === false) {
+            fwrite(STDERR, "WARNING: skipping unreadable directory: {$path}\n");
+            return false;
+        }
+        closedir($dh);
+        return true;
+    }
+}
+
+$flags = FilesystemIterator::SKIP_DOTS | FilesystemIterator::UNIX_PATHS;
+$inner = new TolerantRecursiveDirectoryIterator($sourceDir, $flags);
+$filtered = new RecursiveCallbackFilterIterator($inner, static function ($current) use ($skipNames) {
+    return !isset($skipNames[$current->getFilename()]);
+});
+$iter = new RecursiveIteratorIterator($filtered, RecursiveIteratorIterator::LEAVES_ONLY);
+
+$map = [];
+foreach ($iter as $file) {
+    $path = $file->getPathname();
+    if (!$file->isFile() || !is_readable($path)) {
+        continue;
+    }
+    $rel = substr($path, strlen($sourceDir) + 1);
+    $map[$rel] = $path;
+}
+
+if (!isset($map['oauth2/authorize.php'])) {
+    fwrite(STDERR, "ERROR: oauth2/authorize.php was not collected for the PHAR\n");
+    exit(1);
+}
+
 $phar = new Phar($pharFile);
-$phar->buildFromDirectory($sourceDir);
+$phar->buildFromIterator(new ArrayIterator($map));
 $phar->setStub($phar->createDefaultStub('interface/main/main.php'));
 $phar->compressFiles(Phar::GZ);
-echo "PHAR created: $pharFile\n";
+echo "PHAR created: $pharFile (" . count($map) . " files)\n";
 PHARBUILDER
 
-php -d memory_limit=2048M -d phar.readonly=0 /build/create-phar.php "${PHAR_FILE}" /build/openemr-phar
+PHAR_TMP="/var/tmp/openemr.phar"
+rm -f "${PHAR_TMP}"
+php -d memory_limit=2048M -d phar.readonly=0 /build/create-phar.php "${PHAR_TMP}" "${PACK_DIR}"
+cp -f "${PHAR_TMP}" "${PHAR_FILE}"
+rm -rf "${PACK_DIR}" "${PHAR_TMP}"
 
 if [ ! -f "${PHAR_FILE}" ]; then
     echo "ERROR: Failed to create PHAR file"

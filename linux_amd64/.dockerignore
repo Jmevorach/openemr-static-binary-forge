@@ -4,8 +4,11 @@
 # Build artifacts
 output/
 openemr-source/
+openemr-phar/
+.spc-workdir/
 docker-build-internal.sh
 Dockerfile.build
+create-phar.php
 
 # Documentation
 *.md
