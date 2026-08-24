@@ -35,9 +35,9 @@ Complete guide for building OpenEMR static binaries for Linux amd64 using Docker
 
 ## Pre-built Binaries
 
-If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_amd64-php85-openemr-v7_0_4-amd64-12262025).
+If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_amd64-php85-openemr-v8_0_0-amd64-03102026).
 
-**Latest Release**: [linux_amd64-php85-openemr-v7_0_4-amd64-12262025](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_amd64-php85-openemr-v7_0_4-amd64-12262025)
+**Latest Release**: [linux_amd64-php85-openemr-v8_0_0-amd64-03102026](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_amd64-php85-openemr-v8_0_0-amd64-03102026)
 **To use a pre-built binary:**
 1. Download the release assets to the `linux_amd64` directory
 2. Run `./run-web-server.sh` in that directory ...
@@ -84,16 +84,16 @@ cd linux_amd64
 ./build-linux.sh [openemr_version]
 ```
 
-For example, to build OpenEMR version 7.0.4:
+For example, to build OpenEMR version 8.3.0:
 ```bash
-./build-linux.sh v7_0_4
+./build-linux.sh v8_3_0
 ```
 
-If no version is specified, it defaults to `v7_0_4`.
+If no version is specified, it defaults to `v8_3_0`.
 
 **PHP Version**: You can specify a PHP version using the `PHP_VERSION` environment variable:
 ```bash
-PHP_VERSION=8.4 ./build-linux.sh v7_0_4
+PHP_VERSION=8.4 ./build-linux.sh v8_3_0
 ```
 
 The default PHP version is 8.5. The build script will automatically fetch the latest patch version for the specified major.minor version.
@@ -110,10 +110,10 @@ The script will:
 
 After a successful build, the binaries will be located at:
 ```
-linux_amd64/openemr-v7_0_4-linux-amd64
-linux_amd64/php-cli-v7_0_4-linux-amd64
-linux_amd64/php-cgi-v7_0_4-linux-amd64
-linux_amd64/php-fpm-v7_0_4-linux-amd64
+linux_amd64/openemr-v8_3_0-linux-amd64
+linux_amd64/php-cli-v8_3_0-linux-amd64
+linux_amd64/php-cgi-v8_3_0-linux-amd64
+linux_amd64/php-fpm-v8_3_0-linux-amd64
 ```
 
 #### Using the Binary
@@ -302,8 +302,10 @@ The build includes these PHP extensions required by OpenEMR:
 - sockets
 - zip
 - imagick
+- iconv
+- sodium
 
-**Note**: The build uses PHP (version specified by PHP_VERSION environment variable, default: 8.5) with all required extensions statically compiled.
+**Note**: The build uses PHP (version specified by PHP_VERSION environment variable, default: 8.5) with all required extensions statically compiled. OpenEMR 8.3.0 also requires Node.js 24 for the frontend asset build.
 
 ## References
 

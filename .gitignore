@@ -58,5 +58,7 @@ pkgroot/
 spc
 /mac_os/build-tmp/
 /linux_amd64/build-tmp/
+/linux_amd64/.spc-workdir/
 /linux_arm64/build-tmp/
+/linux_arm64/.spc-workdir/
 /freebsd/build-tmp/

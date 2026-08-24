@@ -35,11 +35,11 @@ Complete guide for building OpenEMR static binaries for Linux arm64 using Docker
 
 ## Pre-built Binaries
 
-If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_arm64-php85-openemr-v7_0_4-arm64-12292025).
+If you prefer not to build from source, you can download pre-built binaries from the [releases page](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_arm64-php85-openemr-v8_0_0-arm64-03102026).
 
-**Latest Release**: [linux_arm64-php85-openemr-v7_0_4-arm64-12292025](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_arm64-php85-openemr-v7_0_4-arm64-12292025)
+**Latest Release**: [linux_arm64-php85-openemr-v8_0_0-arm64-03102026](https://github.com/Jmevorach/openemr-static-binary-forge/releases/tag/linux_arm64-php85-openemr-v8_0_0-arm64-03102026)
 **To use a pre-built binary:**
-1. Download the release assets to the `linux_amd64` directory
+1. Download the release assets to the `linux_arm64` directory
 2. Run `./run-web-server.sh` in that directory ...
 3. ... Or follow the instructions in the `apache` directory
 
@@ -84,12 +84,12 @@ cd linux_arm64
 ./build-linux.sh [openemr_version]
 ```
 
-For example, to build OpenEMR version 7.0.4:
+For example, to build OpenEMR version 8.3.0:
 ```bash
-./build-linux.sh v7_0_4
+./build-linux.sh v8_3_0
 ```
 
-If no version is specified, it defaults to `v7_0_4`.
+If no version is specified, it defaults to `v8_3_0`.
 
 The script will:
 1. Build a Docker image with all build dependencies
@@ -102,10 +102,10 @@ The script will:
 
 After a successful build, the binaries will be located at:
 ```
-linux_arm64/openemr-v7_0_4-linux-arm64
-linux_arm64/php-cli-v7_0_4-linux-arm64
-linux_arm64/php-cgi-v7_0_4-linux-arm64
-linux_arm64/php-fpm-v7_0_4-linux-arm64
+linux_arm64/openemr-v8_3_0-linux-arm64
+linux_arm64/php-cli-v8_3_0-linux-arm64
+linux_arm64/php-cgi-v8_3_0-linux-arm64
+linux_arm64/php-fpm-v8_3_0-linux-arm64
 ```
 
 #### Using the Binary
@@ -284,6 +284,8 @@ The build includes these PHP extensions required by OpenEMR:
 - sockets
 - zip
 - imagick
+- iconv
+- sodium
 
 **Note**: The build uses PHP 8.5 with all required extensions statically compiled.
 

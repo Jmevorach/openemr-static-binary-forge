@@ -14,8 +14,8 @@
 #                 Example: PHP_VERSION=8.4 ./build-linux.sh
 #
 # Example:
-#   ./build-linux.sh v8_0_0
-#   PHP_VERSION=8.4 ./build-linux.sh v8_0_0
+#   ./build-linux.sh v8_3_0
+#   PHP_VERSION=8.4 ./build-linux.sh v8_3_0
 #
 # Requirements:
 #   - Docker installed and running
@@ -32,7 +32,7 @@
 # to use different versions.
 #
 # OpenEMR Configuration:
-export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_0_0}"
+export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_3_0}"
 #
 # Docker Base Image:
 export DOCKER_BASE_IMAGE="${DOCKER_BASE_IMAGE:-ubuntu:24.04}"
@@ -41,14 +41,14 @@ export DOCKER_BASE_IMAGE="${DOCKER_BASE_IMAGE:-ubuntu:24.04}"
 export PHP_VERSION="${PHP_VERSION:-8.5}"
 #
 # Static PHP CLI (SPC) Configuration:
-# The static-php-cli repository is cloned from GitHub. Pinned to release tag 2.8.2
+# The static-php-cli repository is cloned from GitHub. Pinned to release tag 2.8.5
 # for stability. Override STATIC_PHP_CLI_RELEASE_TAG to use a different version.
 export STATIC_PHP_CLI_REPO="${STATIC_PHP_CLI_REPO:-https://github.com/crazywhalecc/static-php-cli.git}"
 export STATIC_PHP_CLI_BRANCH="${STATIC_PHP_CLI_BRANCH:-main}"
-export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.8.2}"
+export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.8.5}"
 #
 # PHP Extensions (comma-separated list):
-export PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick,filter,curl,dom,fileinfo,simplexml,xmlreader,xmlwriter,xsl,ctype,calendar,tokenizer}"
+export PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick,filter,curl,dom,fileinfo,simplexml,xmlreader,xmlwriter,xsl,ctype,calendar,tokenizer,iconv,sodium}"
 # ==============================================================================
 
 set -euo pipefail
@@ -155,8 +155,6 @@ RUN apt-get update --allow-insecure-repositories && apt-get install -y \\
     libmagickwand-dev \\
     pkg-config \\
     composer \\
-    nodejs \\
-    npm \\
     bison \\
     re2c \\
     flex \\
@@ -170,6 +168,11 @@ RUN apt-get update --allow-insecure-repositories && apt-get install -y \\
     libsqlite3-dev \\
     libicu-dev \\
     && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 24 (required by OpenEMR 8.3.0)
+RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \\
+    apt-get install -y nodejs && \\
+    rm -rf /var/lib/apt/lists/*
 
 # Build PHP from source (official php.net source)
 # Get latest PHP version from official releases if not provided
@@ -242,12 +245,12 @@ cat > "${BUILD_SCRIPT}" << 'BUILD_SCRIPT_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
-OPENEMR_TAG="${1:-v8_0_0}"
+OPENEMR_TAG="${1:-v8_3_0}"
 PHP_VERSION="${2:-8.5}"
 STATIC_PHP_CLI_REPO="${3:-https://github.com/crazywhalecc/static-php-cli.git}"
 STATIC_PHP_CLI_BRANCH="${4:-main}"
-STATIC_PHP_CLI_RELEASE_TAG="${5:-2.8.2}"
-PHP_EXTENSIONS="${6:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick,filter,curl,dom,fileinfo,simplexml,xmlreader,xmlwriter,xsl,ctype,calendar,tokenizer}"
+STATIC_PHP_CLI_RELEASE_TAG="${5:-2.8.5}"
+PHP_EXTENSIONS="${6:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick,filter,curl,dom,fileinfo,simplexml,xmlreader,xmlwriter,xsl,ctype,calendar,tokenizer,iconv,sodium}"
 ARCH="aarch64"
 TARGET_ARCH="arm64"
 
@@ -399,6 +402,7 @@ fi
 echo "Creating PHAR archive..."
 cat > /build/create-phar.php << 'PHARBUILDER'
 <?php
+ini_set('memory_limit', '2048M');
 ini_set('phar.readonly', '0');
 $pharFile = $argv[1];
 $sourceDir = $argv[2];
@@ -412,7 +416,7 @@ $phar->compressFiles(Phar::GZ);
 echo "PHAR created: $pharFile\n";
 PHARBUILDER
 
-php -d phar.readonly=0 /build/create-phar.php "${PHAR_FILE}" /build/openemr-phar
+php -d memory_limit=2048M -d phar.readonly=0 /build/create-phar.php "${PHAR_FILE}" /build/openemr-phar
 
 if [ ! -f "${PHAR_FILE}" ]; then
     echo "ERROR: Failed to create PHAR file"
@@ -553,6 +557,32 @@ echo "Step 3/5: Downloading dependencies..."
 cd /tmp
 "${SPC_BIN}" doctor --auto-fix || true
 
+# musl-cross `ar` can fail under Docker Desktop overlay with:
+#   aarch64-linux-musl-ar: unable to copy file '.libs/libsodium.a'; reason: No error information
+# Archive format is toolchain-agnostic, so retry then fall back to host GNU ar.
+if [ -x /usr/local/musl/bin/aarch64-linux-musl-ar ]; then
+    echo "Installing resilient ar wrapper for musl toolchain..."
+    mv /usr/local/musl/bin/aarch64-linux-musl-ar /usr/local/musl/bin/aarch64-linux-musl-ar.real
+    cat > /usr/local/musl/bin/aarch64-linux-musl-ar << 'AR_WRAPPER_EOF'
+#!/usr/bin/env bash
+REAL_AR="/usr/local/musl/bin/aarch64-linux-musl-ar.real"
+HOST_AR="/usr/bin/ar"
+for attempt in 1 2 3; do
+    if "${REAL_AR}" "$@"; then
+        exit 0
+    fi
+    echo "aarch64-linux-musl-ar failed (attempt ${attempt}/3), retrying..." >&2
+    sleep "${attempt}"
+done
+if [ -x "${HOST_AR}" ]; then
+    echo "aarch64-linux-musl-ar failed after retries; falling back to ${HOST_AR}" >&2
+    exec "${HOST_AR}" "$@"
+fi
+exit 1
+AR_WRAPPER_EOF
+    chmod +x /usr/local/musl/bin/aarch64-linux-musl-ar
+fi
+
 echo "Downloading PHP and extension sources..."
 MAX_DOWNLOAD_RETRIES=3
 DOWNLOAD_RETRY_COUNT=0
@@ -567,9 +597,9 @@ while [ ${DOWNLOAD_RETRY_COUNT} -lt ${MAX_DOWNLOAD_RETRIES} ]; do
     
     DOWNLOAD_RETRY_COUNT=$((DOWNLOAD_RETRY_COUNT + 1))
     if [ ${DOWNLOAD_RETRY_COUNT} -lt ${MAX_DOWNLOAD_RETRIES} ]; then
-        WAIT_TIME=$((DOWNLOAD_RETRY_COUNT * 30))
+        WAIT_TIME=$((DOWNLOAD_RETRY_COUNT * 60))
         echo "Download failed (attempt ${DOWNLOAD_RETRY_COUNT}/${MAX_DOWNLOAD_RETRIES})."
-        echo "Waiting ${WAIT_TIME} seconds before retrying..."
+        echo "Waiting ${WAIT_TIME} seconds before retrying (GitHub rate limits reset slowly)..."
         sleep ${WAIT_TIME}
     else
         echo "ERROR: Failed to download dependencies after ${MAX_DOWNLOAD_RETRIES} attempts"
@@ -590,13 +620,29 @@ export NPROC="${PARALLEL_JOBS}"
 # Note: PHP version is set during download step, not build step
 cd /tmp
 # Add --debug flag for more verbose output to help diagnose issues
-"${SPC_BIN}" build \
-    --build-cli \
-    --build-cgi \
-    --build-fpm \
-    --build-micro \
-    --debug \
-    "${PHP_EXTENSIONS}"
+MAX_BUILD_RETRIES=2
+BUILD_RETRY_COUNT=0
+while [ ${BUILD_RETRY_COUNT} -le ${MAX_BUILD_RETRIES} ]; do
+    if "${SPC_BIN}" build \
+        --build-cli \
+        --build-cgi \
+        --build-fpm \
+        --build-micro \
+        --debug \
+        "${PHP_EXTENSIONS}"; then
+        break
+    fi
+    BUILD_RETRY_COUNT=$((BUILD_RETRY_COUNT + 1))
+    if [ ${BUILD_RETRY_COUNT} -le ${MAX_BUILD_RETRIES} ]; then
+        echo "SPC build failed (attempt ${BUILD_RETRY_COUNT}/${MAX_BUILD_RETRIES}). Retrying..."
+        export SPC_CONCURRENCY=1
+        export MAKEFLAGS="-j1"
+        export MAKE_JOBS="1"
+    else
+        echo "ERROR: Failed to build static PHP after $((MAX_BUILD_RETRIES + 1)) attempts"
+        exit 1
+    fi
+done
 
 echo "✓ Static PHP binaries built"
 echo ""
@@ -666,6 +712,17 @@ chmod +x "${BUILD_SCRIPT}"
 OUTPUT_DIR="${SCRIPT_DIR}/output"
 mkdir -p "${OUTPUT_DIR}"
 
+# SPC downloads and compiles into /tmp. Docker Desktop's VM disk is often
+# too small (this host was at 96% / 2GB free), so keep that work on the host.
+SPC_WORKDIR="${SCRIPT_DIR}/.spc-workdir"
+mkdir -p "${SPC_WORKDIR}/musl"
+
+# Unauthenticated GitHub API is 60 req/hour; SPC download hits it per source.
+if [ -z "${GITHUB_TOKEN:-}" ] && command -v gh >/dev/null 2>&1; then
+    GITHUB_TOKEN="$(gh auth token 2>/dev/null || true)"
+    export GITHUB_TOKEN
+fi
+
 echo "Starting Docker build container..."
 echo "This may take 30-60 minutes depending on your system."
 echo ""
@@ -673,12 +730,20 @@ echo ""
 # Run the build inside Docker
 # Allocate 16GB RAM for faster builds (adjust based on your Docker Desktop settings)
 CONTAINER_NAME="openemr-builder-arm64-$(date +%s)"
+DOCKER_ENV_ARGS=()
+if [ -n "${GITHUB_TOKEN:-}" ]; then
+    DOCKER_ENV_ARGS+=(-e GITHUB_TOKEN)
+    echo "Using GITHUB_TOKEN for SPC source downloads"
+fi
 docker run --name "${CONTAINER_NAME}" \
     --platform linux/arm64 \
     --memory=16g \
     --memory-swap=16g \
+    "${DOCKER_ENV_ARGS[@]}" \
     -v "${SCRIPT_DIR}:/build" \
     -v "${OUTPUT_DIR}:/output" \
+    -v "${SPC_WORKDIR}:/tmp" \
+    -v "${SPC_WORKDIR}/musl:/usr/local/musl" \
     -w /build \
     openemr-builder-arm64:latest \
     bash /build/docker-build-internal.sh "${OPENEMR_TAG}" "${PHP_VERSION}" "${STATIC_PHP_CLI_REPO}" "${STATIC_PHP_CLI_BRANCH}" "${STATIC_PHP_CLI_RELEASE_TAG}" "${PHP_EXTENSIONS}" || {
