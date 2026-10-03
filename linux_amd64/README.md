@@ -84,16 +84,16 @@ cd linux_amd64
 ./build-linux.sh [openemr_version]
 ```
 
-For example, to build OpenEMR version 8.3.0:
+For example, to build OpenEMR version 8.4.1:
 ```bash
-./build-linux.sh v8_3_0
+./build-linux.sh v8_4_1
 ```
 
-If no version is specified, it defaults to `v8_3_0`.
+If no version is specified, it defaults to `v8_4_1` with PHP 8.5 (the current 8.5 patch, 8.5.11).
 
 **PHP Version**: You can specify a PHP version using the `PHP_VERSION` environment variable:
 ```bash
-PHP_VERSION=8.4 ./build-linux.sh v8_3_0
+PHP_VERSION=8.4 ./build-linux.sh v8_4_1
 ```
 
 The default PHP version is 8.5. The build script will automatically fetch the latest patch version for the specified major.minor version.
@@ -110,10 +110,10 @@ The script will:
 
 After a successful build, the binaries will be located at:
 ```
-linux_amd64/openemr-v8_3_0-linux-amd64
-linux_amd64/php-cli-v8_3_0-linux-amd64
-linux_amd64/php-cgi-v8_3_0-linux-amd64
-linux_amd64/php-fpm-v8_3_0-linux-amd64
+linux_amd64/openemr-v8_4_1-linux-amd64
+linux_amd64/php-cli-v8_4_1-linux-amd64
+linux_amd64/php-cgi-v8_4_1-linux-amd64
+linux_amd64/php-fpm-v8_4_1-linux-amd64
 ```
 
 #### Using the Binary
@@ -305,7 +305,7 @@ The build includes these PHP extensions required by OpenEMR:
 - iconv
 - sodium
 
-**Note**: The build uses PHP (version specified by PHP_VERSION environment variable, default: 8.5) with all required extensions statically compiled. OpenEMR 8.3.0 also requires Node.js 24 for the frontend asset build.
+**Note**: The build uses PHP (version specified by PHP_VERSION environment variable, default: 8.5) with all required extensions statically compiled. OpenEMR 8.4.1 also requires Node.js 24 for the frontend asset build.
 
 ## References
 

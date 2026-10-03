@@ -14,8 +14,8 @@
 #                 Example: PHP_VERSION=8.4 ./build-linux.sh
 #
 # Example:
-#   ./build-linux.sh v8_3_0
-#   PHP_VERSION=8.4 ./build-linux.sh v8_3_0
+#   ./build-linux.sh v8_4_1
+#   PHP_VERSION=8.4 ./build-linux.sh v8_4_1
 #
 # Requirements:
 #   - Docker installed and running
@@ -32,17 +32,19 @@
 # to use different versions.
 #
 # OpenEMR Configuration:
-export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_3_0}"
+export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_4_1}"
 #
 # Docker Base Image:
 export DOCKER_BASE_IMAGE="${DOCKER_BASE_IMAGE:-ubuntu:24.04}"
 #
 # PHP Configuration:
+# 8.5 is the latest stable line. The Docker image resolves it to the current
+# patch (8.5.11 as of 2026-09-24) when building the host PHP used for PHAR creation.
+# SPC also downloads that current 8.5 patch for the static binaries.
 export PHP_VERSION="${PHP_VERSION:-8.5}"
 #
 # Static PHP CLI (SPC) Configuration:
-# The static-php-cli repository is cloned from GitHub. Pinned to release tag 2.8.5
-# for stability. Override STATIC_PHP_CLI_RELEASE_TAG to use a different version.
+# Pinned to the latest release, 2.8.5. Override STATIC_PHP_CLI_RELEASE_TAG to use another version.
 export STATIC_PHP_CLI_REPO="${STATIC_PHP_CLI_REPO:-https://github.com/crazywhalecc/static-php-cli.git}"
 export STATIC_PHP_CLI_BRANCH="${STATIC_PHP_CLI_BRANCH:-main}"
 export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.8.5}"
@@ -169,10 +171,22 @@ RUN apt-get update --allow-insecure-repositories && apt-get install -y \\
     libicu-dev \\
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 24 (required by OpenEMR 8.3.0)
-RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \\
-    apt-get install -y nodejs && \\
-    rm -rf /var/lib/apt/lists/*
+# Install Node.js 24 from the official tarball. NodeSource's apt setup fails
+# under QEMU amd64 with "invalid signature" on Ubuntu InRelease files.
+RUN set -eux; \\
+    arch="\$(dpkg --print-architecture)"; \\
+    case "\${arch}" in \\
+        amd64) node_arch=x64 ;; \\
+        arm64) node_arch=arm64 ;; \\
+        *) echo "Unsupported architecture: \${arch}"; exit 1 ;; \\
+    esac; \\
+    node_tarball="\$(curl -fsSL https://nodejs.org/dist/latest-v24.x/SHASUMS256.txt | awk -v a="\${node_arch}" '\$2 ~ ("node-v24.*linux-" a ".tar.xz") { print \$2; exit }')"; \\
+    test -n "\${node_tarball}"; \\
+    curl -fsSL "https://nodejs.org/dist/latest-v24.x/\${node_tarball}" -o /tmp/node.tar.xz; \\
+    tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1; \\
+    rm /tmp/node.tar.xz; \\
+    node -v; \\
+    npm -v
 
 # Build PHP from source (official php.net source)
 # Get latest PHP version from official releases if not provided
@@ -245,7 +259,7 @@ cat > "${BUILD_SCRIPT}" << 'BUILD_SCRIPT_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
-OPENEMR_TAG="${1:-v8_3_0}"
+OPENEMR_TAG="${1:-v8_4_1}"
 PHP_VERSION="${2:-8.5}"
 STATIC_PHP_CLI_REPO="${3:-https://github.com/crazywhalecc/static-php-cli.git}"
 STATIC_PHP_CLI_BRANCH="${4:-main}"
@@ -739,7 +753,7 @@ docker run --name "${CONTAINER_NAME}" \
     --platform linux/arm64 \
     --memory=16g \
     --memory-swap=16g \
-    "${DOCKER_ENV_ARGS[@]}" \
+    ${DOCKER_ENV_ARGS[@]+"${DOCKER_ENV_ARGS[@]}"} \
     -v "${SCRIPT_DIR}:/build" \
     -v "${OUTPUT_DIR}:/output" \
     -v "${SPC_WORKDIR}:/tmp" \

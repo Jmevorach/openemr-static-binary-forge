@@ -84,12 +84,12 @@ cd linux_arm64
 ./build-linux.sh [openemr_version]
 ```
 
-For example, to build OpenEMR version 8.3.0:
+For example, to build OpenEMR version 8.4.1:
 ```bash
-./build-linux.sh v8_3_0
+./build-linux.sh v8_4_1
 ```
 
-If no version is specified, it defaults to `v8_3_0`.
+If no version is specified, it defaults to `v8_4_1` with PHP 8.5 (the current 8.5 patch, 8.5.11).
 
 The script will:
 1. Build a Docker image with all build dependencies
@@ -102,10 +102,10 @@ The script will:
 
 After a successful build, the binaries will be located at:
 ```
-linux_arm64/openemr-v8_3_0-linux-arm64
-linux_arm64/php-cli-v8_3_0-linux-arm64
-linux_arm64/php-cgi-v8_3_0-linux-arm64
-linux_arm64/php-fpm-v8_3_0-linux-arm64
+linux_arm64/openemr-v8_4_1-linux-arm64
+linux_arm64/php-cli-v8_4_1-linux-arm64
+linux_arm64/php-cgi-v8_4_1-linux-arm64
+linux_arm64/php-fpm-v8_4_1-linux-arm64
 ```
 
 #### Using the Binary
