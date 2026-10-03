@@ -142,9 +142,14 @@ echo -e "${YELLOW}Step 1/5: Setting up FreeBSD VM image...${NC}"
 VM_ARCH="${FREEBSD_ARCH}"; [ "${FREEBSD_ARCH}" = "arm64" ] && VM_ARCH="aarch64"
 FREEBSD_IMAGE_NAME="FreeBSD-${FREEBSD_VERSION}-RELEASE-${FREEBSD_ARCH}-${VM_ARCH}-ufs.qcow2"
 FREEBSD_IMAGE_URL="https://download.freebsd.org/releases/VM-IMAGES/${FREEBSD_VERSION}-RELEASE/${VM_ARCH}/Latest/${FREEBSD_IMAGE_NAME}.xz"
+CACHE_DIR="${SCRIPT_DIR}/vm-images"
+CACHED_IMAGE="${CACHE_DIR}/${FREEBSD_IMAGE_NAME}"
 FREEBSD_IMAGE="${VM_DIR}/${FREEBSD_IMAGE_NAME}"
 
-if [ ! -f "${FREEBSD_IMAGE}" ]; then
+if [ -f "${CACHED_IMAGE}" ]; then
+    echo "Restoring cached FreeBSD image."
+    cp "${CACHED_IMAGE}" "${FREEBSD_IMAGE}"
+elif [ ! -f "${FREEBSD_IMAGE}" ]; then
     echo "Downloading FreeBSD ${FREEBSD_VERSION} image..."
     MAX_RETRIES=5
     RETRY_COUNT=0
@@ -177,6 +182,8 @@ if [ ! -f "${FREEBSD_IMAGE}" ]; then
 
     qemu-img resize "${FREEBSD_IMAGE}" 30G
     echo "Image resized."
+    mkdir -p "${CACHE_DIR}"
+    cp "${FREEBSD_IMAGE}" "${CACHED_IMAGE}"
 else
     echo "Using existing FreeBSD image."
 fi
@@ -318,7 +325,8 @@ if ! fetch -o "/build/${PHP_TARBALL}" "${PHP_URL}" 2>/dev/null; then
     git clone --depth=1 https://github.com/php/php-src.git "${PHP_SRC_DIR}"
 else
     tar -xf "/build/${PHP_TARBALL}" -C /build
-    mv /build/php-${PHP_VERSION}* "${PHP_SRC_DIR}"
+    rm -rf "${PHP_SRC_DIR}"
+    mv "/build/php-${PHP_VERSION}" "${PHP_SRC_DIR}"
 fi
 
 cd "${PHP_SRC_DIR}"
