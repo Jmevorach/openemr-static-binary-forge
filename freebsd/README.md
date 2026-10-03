@@ -85,8 +85,8 @@ The build produces:
 
 | Artifact | Description                                                                 |
 |----------|-----------------------------------------------------------------------------|
-| `openemr-v8_3_0-freebsd-arm64.tar.gz` | Complete distribution package (see picture above for uncompressed contents) |
-| `php-fpm-v8_3_0-freebsd-arm64` | Native PHP-FPM binary for FreeBSD |
+| `openemr-v8_4_1-freebsd-arm64.tar.gz` | Complete distribution package (see picture above for uncompressed contents) |
+| `php-fpm-v8_4_1-freebsd-arm64` | Native PHP-FPM binary for FreeBSD |
 
 ## Quick Start
 
@@ -107,7 +107,7 @@ Then open http://localhost:8080 in your browser.
 cd freebsd
 
 # Build the binaries
-./build-freebsd.sh v8_3_0
+./build-freebsd.sh v8_4_1
 
 # Run OpenEMR in FreeBSD VM
 ./run-freebsd-vm.sh -p 8080
@@ -269,9 +269,9 @@ The `build-freebsd.sh` script compiles OpenEMR and PHP from source inside a Free
 
 | Argument | Description | Default |
 |----------|-------------|---------|
-| `openemr_version` | OpenEMR tag to build | v8_3_0 |
+| `openemr_version` | OpenEMR tag to build | v8_4_1 |
 | `freebsd_version` | FreeBSD version | 15.1 |
-| `php_version` | PHP version to build | 8.5 |
+| `php_version` | PHP version to build | 8.5 (current patch, 8.5.11) |
 
 ### Examples
 
@@ -280,10 +280,10 @@ The `build-freebsd.sh` script compiles OpenEMR and PHP from source inside a Free
 ./build-freebsd.sh
 
 # Specific OpenEMR version
-./build-freebsd.sh v8_3_0
+./build-freebsd.sh v8_4_1
 
 # Specific FreeBSD and PHP versions
-./build-freebsd.sh v8_3_0 15.1 8.5
+./build-freebsd.sh v8_4_1 15.1 8.5
 ```
 
 ### Build Process
@@ -528,7 +528,7 @@ pkg install -y git curl wget gmake autoconf automake libtool \
     webp curl openldap26-client mysql84-client node24 npm-node24
 
 # Clone OpenEMR and PHP source
-git clone --depth 1 --branch v8_3_0 https://github.com/openemr/openemr.git
+git clone --depth 1 --branch v8_4_1 https://github.com/openemr/openemr.git
 git clone --depth 1 --branch php-8.5 https://github.com/php/php-src.git
 
 # Configure and build PHP with required extensions
@@ -569,11 +569,11 @@ If you're running **on an actual FreeBSD system** (not via QEMU on macOS), use t
 
 ```bash
 # Transfer the distribution tarball to your FreeBSD system
-scp dist/openemr-v8_3_0-freebsd-arm64.tar.gz user@freebsd-server:/home/user/
+scp dist/openemr-v8_4_1-freebsd-arm64.tar.gz user@freebsd-server:/home/user/
 
 # On the FreeBSD system:
-tar -xzf openemr-v8_3_0-freebsd-arm64.tar.gz
-cd openemr-v8_3_0-freebsd-arm64
+tar -xzf openemr-v8_4_1-freebsd-arm64.tar.gz
+cd openemr-v8_4_1-freebsd-arm64
 
 # Option 1: Use the included run script
 ./run-web-server.sh 8080

@@ -17,15 +17,19 @@
 #   ./build-freebsd.sh [openemr_version] [freebsd_version]
 #
 # Example:
-#   ./build-freebsd.sh v8_3_0 15.1
+#   ./build-freebsd.sh v8_4_1 15.1
 # ==============================================================================
 
 # ==============================================================================
 # Version Configuration
 # ==============================================================================
-export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_3_0}"
+export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_4_1}"
 export FREEBSD_VERSION="${FREEBSD_VERSION:-15.1}"
+# 8.5 is the latest stable PHP line. A major.minor value is resolved to the
+# current patch (8.5.11 as of 2026-09-24) before the VM build starts.
 export PHP_VERSION="${PHP_VERSION:-8.5}"
+# Latest static-php-cli release. The FreeBSD build compiles PHP itself; this
+# pin is recorded for the same release used by the other platform builds.
 export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.8.5}"
 export STATIC_PHP_CLI_REPO="${STATIC_PHP_CLI_REPO:-crazywhalecc/static-php-cli}"
 export PHP_EXTENSIONS="${PHP_EXTENSIONS:-bcmath,exif,gd,intl,ldap,mbstring,mysqli,opcache,openssl,pcntl,pdo_mysql,phar,redis,soap,sockets,zip,imagick,filter,curl,dom,fileinfo,simplexml,xmlreader,xmlwriter,xsl,ctype,calendar,tokenizer,iconv,sodium}"
@@ -78,6 +82,14 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# A major.minor PHP version has no php.net tarball. Resolve it to the current patch.
+if [[ "${PHP_VERSION}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+    PHP_VERSION_RESOLVED="$(curl -fsSL "https://www.php.net/releases/index.php?json&version=${PHP_VERSION}" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("version",""))' 2>/dev/null || true)"
+    if [[ "${PHP_VERSION_RESOLVED}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        PHP_VERSION="${PHP_VERSION_RESOLVED}"
+    fi
+fi
 
 echo -e "${GREEN}============================================================================${NC}"
 echo -e "${GREEN}Building OpenEMR Static Binary for FreeBSD using QEMU${NC}"
