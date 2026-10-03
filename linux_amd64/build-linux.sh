@@ -275,6 +275,12 @@ TARGET_ARCH="amd64"
 
 cd /build
 
+# Composer and npm caches default to the container writable layer, which
+# filled the Docker VM disk on the previous amd64 run. /tmp is a host mount.
+mkdir -p /tmp/npm-cache /tmp/composer-cache
+export npm_config_cache=/tmp/npm-cache
+export COMPOSER_CACHE_DIR=/tmp/composer-cache
+
 # Detect system resources
 CPU_CORES=$(nproc)
 PHYSICAL_CORES=${CPU_CORES}
@@ -399,6 +405,17 @@ else
                 echo "WARNING: npm install also had issues, but continuing..."
             }
         }
+
+        # napa installs the GitHub zips in parallel and exits 0 even when an
+        # extract fails. Retry once if bootstrap-rtl never landed.
+        if [ ! -d public/assets/bootstrap-rtl/scss ]; then
+            echo "bootstrap-rtl assets missing after npm install; retrying napa..."
+            npx napa && node scripts/install-assets.js
+        fi
+        if [ ! -d public/assets/bootstrap-rtl/scss ]; then
+            echo "ERROR: public/assets/bootstrap-rtl/scss is missing"
+            exit 1
+        fi
 
         # Run build command to compile CSS/JS assets
         # OpenEMR uses Gulp via npm run build to compile CSS and JavaScript
