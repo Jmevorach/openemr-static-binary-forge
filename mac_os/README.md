@@ -64,7 +64,7 @@ To use a pre-built binary:
 - **PHP**: For creating PHAR archives (can be installed via Homebrew)
 - **Homebrew**: Recommended package manager for macOS
 - **Composer**: For installing PHP dependencies
-- **Node.js & npm**: For building frontend assets (Node.js 24+ is required for OpenEMR 8.3.0)
+- **Node.js & npm**: For building frontend assets (Node.js 24+ is required for OpenEMR 8.4.1)
 
 ## Quick Start
 
@@ -84,7 +84,7 @@ xcode-select --install
 brew install php
 
 # Install optional but recommended tools
-# OpenEMR 8.3.0 requires Node.js 24+
+# OpenEMR 8.4.1 requires Node.js 24+
 brew install composer node@24
 ```
 
@@ -112,12 +112,12 @@ cd mac_os
 ./build-macos.sh [openemr_version]
 ```
 
-For example, to build OpenEMR version 8.3.0:
+For example, to build OpenEMR version 8.4.1:
 ```bash
-./build-macos.sh v8_3_0
+./build-macos.sh v8_4_1
 ```
 
-If no version is specified, it defaults to `v8_3_0`.
+If no version is specified, it defaults to `v8_4_1` with PHP 8.5 (the current 8.5 patch, 8.5.11).
 
 The script will display detected system resources and optimization settings before building.
 
@@ -125,15 +125,15 @@ The script will display detected system resources and optimization settings befo
 
 After a successful build, the following binaries will be created:
 ```
-mac_os/openemr-v8_3_0-macos-arm64        # Combined binary (Apple Silicon)
-mac_os/openemr-v8_3_0-macos-x86_64       # Combined binary (Intel)
-mac_os/php-cli-v8_3_0-macos-arm64        # PHP CLI binary (Apple Silicon)
-mac_os/php-cli-v8_3_0-macos-x86_64       # PHP CLI binary (Intel)
-mac_os/php-cgi-v8_3_0-macos-arm64        # PHP CGI binary (Apple Silicon)
-mac_os/php-cgi-v8_3_0-macos-x86_64       # PHP CGI binary (Intel)
-mac_os/php-fpm-v8_3_0-macos-arm64        # PHP FPM binary (Apple Silicon)
-mac_os/php-fpm-v8_3_0-macos-x86_64       # PHP FPM binary (Intel)
-mac_os/openemr-v8_3_0.phar               # OpenEMR PHAR archive
+mac_os/openemr-v8_4_1-macos-arm64        # Combined binary (Apple Silicon)
+mac_os/openemr-v8_4_1-macos-x86_64       # Combined binary (Intel)
+mac_os/php-cli-v8_4_1-macos-arm64        # PHP CLI binary (Apple Silicon)
+mac_os/php-cli-v8_4_1-macos-x86_64       # PHP CLI binary (Intel)
+mac_os/php-cgi-v8_4_1-macos-arm64        # PHP CGI binary (Apple Silicon)
+mac_os/php-cgi-v8_4_1-macos-x86_64       # PHP CGI binary (Intel)
+mac_os/php-fpm-v8_4_1-macos-arm64        # PHP FPM binary (Apple Silicon)
+mac_os/php-fpm-v8_4_1-macos-x86_64       # PHP FPM binary (Intel)
+mac_os/openemr-v8_4_1.phar               # OpenEMR PHAR archive
 ```
 
 #### Using the Binary

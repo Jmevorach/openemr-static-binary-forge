@@ -9,7 +9,7 @@
 #   ./build-macos.sh [openemr_version]
 #
 # Example:
-#   ./build-macos.sh v8_3_0
+#   ./build-macos.sh v8_4_1
 #
 # Requirements:
 #   - macOS (Darwin)
@@ -27,9 +27,11 @@
 # to use different versions.
 #
 # OpenEMR Configuration:
-export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_3_0}"
+export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_4_1}"
 #
 # PHP Configuration:
+# 8.5 is the latest stable PHP line. SPC downloads the current 8.5 patch
+# (8.5.11 as of 2026-09-24) when only the major.minor version is given.
 export PHP_VERSION="${PHP_VERSION:-8.5}"
 #
 # Static PHP CLI (SPC) Configuration:
@@ -82,6 +84,7 @@ echo -e "${GREEN}===============================================================
 echo ""
 
 echo "OpenEMR Version: ${OPENEMR_TAG}"
+echo "PHP Version: ${PHP_VERSION} (latest patch of this line)"
 echo "Project Root: ${PROJECT_ROOT}"
 echo "Static Directory: ${SCRIPT_DIR}"
 echo ""
