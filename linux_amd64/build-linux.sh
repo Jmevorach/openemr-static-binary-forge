@@ -688,12 +688,17 @@ echo "Step 3/5: Downloading dependencies..."
 
 # Run SPC commands from /tmp to avoid volume mount issues
 cd /tmp
+# /tmp is a host mount, so a musl source tree extracted and built by a
+# previous run is still here and makes the musl-wrapper rebuild fail.
+rm -rf /tmp/source/musl-*
 "${SPC_BIN}" doctor --auto-fix || true
 
 # musl-cross `ar` can fail under Docker Desktop overlay with:
 #   x86_64-linux-musl-ar: unable to copy file '.libs/libsodium.a'; reason: No error information
 # Archive format is toolchain-agnostic, so retry then fall back to host GNU ar.
-if [ -x /usr/local/musl/bin/x86_64-linux-musl-ar ]; then
+# /usr/local/musl persists across runs; only wrap the real binary once.
+if [ -x /usr/local/musl/bin/x86_64-linux-musl-ar ] \
+    && [ ! -e /usr/local/musl/bin/x86_64-linux-musl-ar.real ]; then
     echo "Installing resilient ar wrapper for musl toolchain..."
     mv /usr/local/musl/bin/x86_64-linux-musl-ar /usr/local/musl/bin/x86_64-linux-musl-ar.real
     cat > /usr/local/musl/bin/x86_64-linux-musl-ar << 'AR_WRAPPER_EOF'
