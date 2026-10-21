@@ -10,7 +10,7 @@
 #   ./build-linux.sh [openemr_version]
 #
 # Environment Variables:
-#   PHP_VERSION - PHP major.minor version to use (default: 8.5)
+#   PHP_VERSION - PHP version to compile (default: 8.5.12; x.y still floats)
 #                 Example: PHP_VERSION=8.4 ./build-linux.sh
 #
 # Example:
@@ -38,10 +38,11 @@ export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_4_1}"
 export DOCKER_BASE_IMAGE="${DOCKER_BASE_IMAGE:-ubuntu:24.04}"
 #
 # PHP Configuration:
-# 8.5 is the latest stable line. The Docker image resolves it to the current
-# patch (8.5.11 as of 2026-09-24) when building the host PHP used for PHAR creation.
-# SPC also downloads that current 8.5 patch for the static binaries.
-export PHP_VERSION="${PHP_VERSION:-8.5}"
+# Pinned to the 2026-10-21 security release (CVE-2026-109618, CVE-2026-109619).
+# This is the PHP that static-php-cli compiles into php-cli and php-fpm, and
+# the host PHP the builder image uses to assemble the PHAR. A major.minor
+# override still follows php.net's latest patch for that line.
+export PHP_VERSION="${PHP_VERSION:-8.5.12}"
 #
 # Static PHP CLI (SPC) Configuration:
 # Pinned to the latest release, 2.8.5. Override STATIC_PHP_CLI_RELEASE_TAG to use another version.
@@ -83,6 +84,19 @@ done
 # Use version variables (allow command-line overrides, fallback to exported defaults)
 OPENEMR_TAG="${OPENEMR_TAG:-${OPENEMR_VERSION}}"
 PHP_VERSION="${PHP_VERSION:-${PHP_VERSION}}"
+# x.y.z is the pin passed to SPC and to the builder image. x.y is resolved
+# inside that image to php.net's current patch for the line.
+if [[ "${PHP_VERSION}" =~ ^([0-9]+\.[0-9]+)\.[0-9]+$ ]]; then
+    PHP_VERSION_MAJOR_MINOR="${BASH_REMATCH[1]}"
+    PHP_VERSION_FULL="${PHP_VERSION}"
+elif [[ "${PHP_VERSION}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+    PHP_VERSION_MAJOR_MINOR="${PHP_VERSION}"
+    PHP_VERSION_FULL=""
+else
+    echo -e "${RED}ERROR: PHP_VERSION must be x.y or x.y.z (got '${PHP_VERSION}')${NC}"
+    exit 1
+fi
+BUILDER_IMAGE="openemr-builder-amd64:${PHP_VERSION}"
 
 if [[ "${DEBUG_MODE}" == "true" ]]; then
     echo -e "${YELLOW}[DEBUG MODE ENABLED]${NC}"
@@ -135,8 +149,8 @@ ARG DOCKER_BASE_IMAGE=${DOCKER_BASE_IMAGE}
 FROM \${DOCKER_BASE_IMAGE}
 
 # Accept PHP version as build argument
-ARG PHP_VERSION_MAJOR_MINOR=${PHP_VERSION}
-ARG PHP_VERSION_FULL
+ARG PHP_VERSION_MAJOR_MINOR=${PHP_VERSION_MAJOR_MINOR}
+ARG PHP_VERSION_FULL=${PHP_VERSION_FULL}
 
 # Avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -237,17 +251,18 @@ RUN cd /tmp && \\
 WORKDIR /build
 DOCKERFILE_EOF
 
-if docker image inspect openemr-builder-amd64:latest >/dev/null 2>&1; then
-    echo -e "${GREEN}✓ Reusing existing Docker image openemr-builder-amd64:latest${NC}"
+if docker image inspect "${BUILDER_IMAGE}" >/dev/null 2>&1; then
+    echo -e "${GREEN}✓ Reusing existing Docker image ${BUILDER_IMAGE}${NC}"
     echo ""
 else
     echo "Building Docker image for Linux amd64 build..."
-    echo "Using PHP version: ${PHP_VERSION}"
+    echo "Using PHP version: ${PHP_VERSION_FULL:-${PHP_VERSION}}"
     echo "Using base image: ${DOCKER_BASE_IMAGE}"
     docker build --platform linux/amd64 \
         --build-arg DOCKER_BASE_IMAGE="${DOCKER_BASE_IMAGE}" \
-        --build-arg PHP_VERSION_MAJOR_MINOR="${PHP_VERSION}" \
-        -t openemr-builder-amd64:latest \
+        --build-arg PHP_VERSION_MAJOR_MINOR="${PHP_VERSION_MAJOR_MINOR}" \
+        --build-arg PHP_VERSION_FULL="${PHP_VERSION_FULL}" \
+        -t "${BUILDER_IMAGE}" \
         -f "${DOCKERFILE}" \
         "${SCRIPT_DIR}" || {
         echo -e "${RED}ERROR: Failed to build Docker image${NC}"
@@ -265,7 +280,7 @@ cat > "${BUILD_SCRIPT}" << 'BUILD_SCRIPT_EOF'
 set -euo pipefail
 
 OPENEMR_TAG="${1:-v8_4_1}"
-PHP_VERSION="${2:-8.5}"
+PHP_VERSION="${2:-8.5.12}"
 STATIC_PHP_CLI_REPO="${3:-https://github.com/crazywhalecc/static-php-cli.git}"
 STATIC_PHP_CLI_BRANCH="${4:-main}"
 STATIC_PHP_CLI_RELEASE_TAG="${5:-2.8.5}"
@@ -872,7 +887,7 @@ docker run --name "${CONTAINER_NAME}" \
     -v "${SPC_WORKDIR}:/tmp" \
     -v "${SPC_WORKDIR}/musl:/usr/local/musl" \
     -w /build \
-    openemr-builder-amd64:latest \
+    "${BUILDER_IMAGE}" \
     bash /build/docker-build-internal.sh "${OPENEMR_TAG}" "${PHP_VERSION}" "${STATIC_PHP_CLI_REPO}" "${STATIC_PHP_CLI_BRANCH}" "${STATIC_PHP_CLI_RELEASE_TAG}" "${PHP_EXTENSIONS}" || {
     echo -e "${RED}ERROR: Docker build failed${NC}"
     echo ""

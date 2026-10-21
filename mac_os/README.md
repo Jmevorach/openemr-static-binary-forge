@@ -117,7 +117,7 @@ For example, to build OpenEMR version 8.4.1:
 ./build-macos.sh v8_4_1
 ```
 
-If no version is specified, it defaults to `v8_4_1` with PHP 8.5 (the current 8.5 patch, 8.5.11).
+If no version is specified, it defaults to `v8_4_1` with PHP 8.5.12 (the 2026-10-21 security release). Override with `PHP_VERSION=8.4` to follow php.net's latest patch on another line.
 
 The script will display detected system resources and optimization settings before building.
 

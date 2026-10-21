@@ -25,9 +25,10 @@
 # ==============================================================================
 export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_4_1}"
 export FREEBSD_VERSION="${FREEBSD_VERSION:-15.1}"
-# 8.5 is the latest stable PHP line. A major.minor value is resolved to the
-# current patch (8.5.11 as of 2026-09-24) before the VM build starts.
-export PHP_VERSION="${PHP_VERSION:-8.5}"
+# Pinned to the 2026-10-21 security release (CVE-2026-109618, CVE-2026-109619).
+# A major.minor value is still resolved to php.net's current patch before the
+# VM build starts. The default is a full x.y.z and is not resolved again.
+export PHP_VERSION="${PHP_VERSION:-8.5.12}"
 # Latest static-php-cli release. The FreeBSD build compiles PHP itself; this
 # pin is recorded for the same release used by the other platform builds.
 export STATIC_PHP_CLI_RELEASE_TAG="${STATIC_PHP_CLI_RELEASE_TAG:-2.8.5}"

@@ -89,14 +89,14 @@ For example, to build OpenEMR version 8.4.1:
 ./build-linux.sh v8_4_1
 ```
 
-If no version is specified, it defaults to `v8_4_1` with PHP 8.5 (the current 8.5 patch, 8.5.11).
+If no version is specified, it defaults to `v8_4_1` with PHP 8.5.12.
 
 **PHP Version**: You can specify a PHP version using the `PHP_VERSION` environment variable:
 ```bash
 PHP_VERSION=8.4 ./build-linux.sh v8_4_1
 ```
 
-The default PHP version is 8.5. The build script will automatically fetch the latest patch version for the specified major.minor version.
+The default is the full version `8.5.12` (the 2026-10-21 security release). A `major.minor` value such as `8.4` is still resolved to the latest patch php.net publishes for that line. The builder image tag includes this version, so an older `openemr-builder-amd64:latest` image is not reused.
 
 The script will:
 1. Build a Docker image with all build dependencies (including PHP compiled from source)
@@ -305,7 +305,7 @@ The build includes these PHP extensions required by OpenEMR:
 - iconv
 - sodium
 
-**Note**: The build uses PHP (version specified by PHP_VERSION environment variable, default: 8.5) with all required extensions statically compiled. OpenEMR 8.4.1 also requires Node.js 24 for the frontend asset build.
+**Note**: The build uses PHP (version specified by PHP_VERSION, default `8.5.12`) with all required extensions statically compiled. OpenEMR 8.4.1 also requires Node.js 24 for the frontend asset build.
 
 ## References
 

@@ -30,9 +30,10 @@
 export OPENEMR_VERSION="${OPENEMR_VERSION:-v8_4_1}"
 #
 # PHP Configuration:
-# 8.5 is the latest stable PHP line. SPC downloads the current 8.5 patch
-# (8.5.11 as of 2026-09-24) when only the major.minor version is given.
-export PHP_VERSION="${PHP_VERSION:-8.5}"
+# Pinned to the 2026-10-21 security release (CVE-2026-109618, CVE-2026-109619).
+# A major.minor override such as PHP_VERSION=8.4 still follows php.net's latest
+# patch for that line. The default does not.
+export PHP_VERSION="${PHP_VERSION:-8.5.12}"
 #
 # Static PHP CLI (SPC) Configuration:
 # The static-php-cli is downloaded as a pre-built release from GitHub.
@@ -84,7 +85,7 @@ echo -e "${GREEN}===============================================================
 echo ""
 
 echo "OpenEMR Version: ${OPENEMR_TAG}"
-echo "PHP Version: ${PHP_VERSION} (latest patch of this line)"
+echo "PHP Version: ${PHP_VERSION}"
 echo "Project Root: ${PROJECT_ROOT}"
 echo "Static Directory: ${SCRIPT_DIR}"
 echo ""

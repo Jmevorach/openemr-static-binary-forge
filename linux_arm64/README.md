@@ -89,7 +89,7 @@ For example, to build OpenEMR version 8.4.1:
 ./build-linux.sh v8_4_1
 ```
 
-If no version is specified, it defaults to `v8_4_1` with PHP 8.5 (the current 8.5 patch, 8.5.11).
+If no version is specified, it defaults to `v8_4_1` with PHP 8.5.12 (the 2026-10-21 security release). A `PHP_VERSION` of `major.minor` still follows php.net's latest patch for that line. The builder image tag includes the version, so an older `openemr-builder-arm64:latest` image is not reused.
 
 The script will:
 1. Build a Docker image with all build dependencies

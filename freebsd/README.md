@@ -271,7 +271,7 @@ The `build-freebsd.sh` script compiles OpenEMR and PHP from source inside a Free
 |----------|-------------|---------|
 | `openemr_version` | OpenEMR tag to build | v8_4_1 |
 | `freebsd_version` | FreeBSD version | 15.1 |
-| `php_version` | PHP version to build | 8.5 (current patch, 8.5.11) |
+| `php_version` | PHP version to build | 8.5.12 |
 
 ### Examples
 
