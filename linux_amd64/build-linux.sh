@@ -314,17 +314,21 @@ echo ""
 echo "Step 1/5: Preparing OpenEMR application..."
 OPENEMR_DIR="/build/openemr-source"
 PHAR_FILE="/build/openemr.phar"
+STAGED_TAG_FILE="/build/openemr-phar.tag"
 
 # Reuse a completed composer+npm tree on the host bind mount. A full
 # QEMU reinstall of google/apiclient-services + webpack is very expensive.
-if [ -f /build/openemr-phar/vendor/autoload.php ] \
+# The tree must have been staged from the requested tag; otherwise an old
+# checkout gets packaged under the new version's filenames.
+if [ "$(cat "${STAGED_TAG_FILE}" 2>/dev/null)" = "${OPENEMR_TAG}" ] \
+    && [ -f /build/openemr-phar/vendor/autoload.php ] \
     && [ -f /build/openemr-phar/oauth2/authorize.php ] \
     && [ -f /build/openemr-phar/public/themes/style_light.css ]; then
     echo "Reusing existing OpenEMR staging tree (vendor + compiled frontend already present)"
     cd /build/openemr-phar
 else
     echo "Cleaning up any previous build artifacts..."
-    rm -rf /build/openemr-source /build/openemr-phar /build/openemr.phar 2>/dev/null || true
+    rm -rf /build/openemr-source /build/openemr-phar /build/openemr.phar "${STAGED_TAG_FILE}" 2>/dev/null || true
 
     echo "Cloning OpenEMR ${OPENEMR_TAG}..."
     MAX_RETRIES=3
@@ -458,6 +462,8 @@ else
 
         echo "Frontend build step completed successfully."
     fi
+
+    echo "${OPENEMR_TAG}" > "${STAGED_TAG_FILE}"
 fi
 
 echo "Creating PHAR archive..."

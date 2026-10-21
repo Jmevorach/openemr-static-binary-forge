@@ -14,6 +14,7 @@ openemr-extracted/
 openemr-fpm-extracted/
 openemr-source/
 openemr-phar/
+openemr-phar.tag
 openemr-extract-temp/
 output/
 Dockerfile.build
